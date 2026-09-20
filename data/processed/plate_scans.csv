@@ -1,2 +1,17 @@
 id,created_at,plate,valid,confidence,engine,source_filename,image_path
 1,2026-09-20T20:10:11,59B112345,1,0.9979326923688253,rapidocr,scene_59B112345.jpg,C:\Users\Admin\SMART_PARKING_ML\data\processed\scans\20260920_201011_760224_scene_59B112345.jpg
+2,2026-09-20T21:26:19,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_212619_656181_anhbsx.webp
+3,2026-09-20T21:28:14,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_212814_982357_anhbsx.webp
+4,2026-09-20T21:29:14,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_212914_424036_anhbsx.webp
+5,2026-09-20T22:00:39,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_220039_596287_anhbsx.webp
+6,2026-09-20T22:15:10,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_221510_642969_anhbsx.webp
+7,2026-09-20T22:17:29,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_221729_023431_anhbsx.webp
+8,2026-09-20T22:22:01,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_222201_347811_anhbsx.webp
+9,2026-09-20T22:23:47,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_222347_402103_anhbsx.webp
+10,2026-09-20T22:25:33,,0,0.0,none,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_222533_601849_anhbsx.webp
+11,2026-09-20T22:36:48,29H13333,1,0.6521209637324015,rapidocr,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_223648_639585_anhbsx.webp
+12,2026-09-20T22:44:34,29H13333,1,0.6521209637324015,rapidocr,anhbsx.webp,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_224434_206093_anhbsx.webp
+13,2026-09-20T22:47:07,50CA5874,1,0.7669424434502919,rapidocr,biensoxe1.jpeg,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_224707_726477_biensoxe1.jpeg
+14,2026-09-20T22:47:52,,0,0.0,rapidocr,biensoxe 2.jpg,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_224752_562649_biensoxe_2.jpg
+15,2026-09-20T22:48:56,,0,0.0,rapidocr,biensoxe2.jpg,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_224856_491225_biensoxe2.jpg
+16,2026-09-20T22:49:08,50CA5874,1,0.7669424434502919,rapidocr,biensoxe1.jpeg,C:\Users\Admin\Downloads\OneDrive - Saigon University\Desktop\SMART_PARKING_ML\data\processed\scans\20260920_224908_638437_biensoxe1.jpeg

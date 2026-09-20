@@ -20,10 +20,21 @@ def _score_box(w: int, h: int, img_area: int) -> float:
     ratio = w / float(h)
     area = w * h
     area_ratio = area / max(img_area, 1)
-    # Ô tô ~ 2.0–5.5; xe máy 2 dòng ~ 1.2–2.2
+    
+    # Kích thước biển số: 
+    # Ô tô (1 dòng) ratio ~ 4.7
+    # Xe máy (2 dòng) ratio ~ 1.3 - 1.4
     if 1.15 <= ratio <= 6.0 and 0.004 <= area_ratio <= 0.45:
         ideal = 2.2 if ratio < 2.4 else 4.2
-        return 1.0 - min(abs(ratio - ideal) / 4.0, 1.0) + min(area_ratio * 4, 0.6)
+        
+        # ĐIỂM TỈ LỆ (Càng gần hình dáng biển số càng tốt)
+        ratio_score = 1.0 - min(abs(ratio - ideal) / 4.0, 1.0)
+        
+        # ĐIỂM DIỆN TÍCH (Tăng mạnh trọng số: Biển càng to thì điểm càng cao)
+        # Hệ số cũ là * 4, giờ tăng lên * 10 để ưu tiên biển gần camera
+        area_score = min(area_ratio * 10, 1.0) 
+        
+        return ratio_score + area_score
     return 0.0
 
 

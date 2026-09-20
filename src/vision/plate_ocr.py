@@ -101,7 +101,12 @@ class PlateRecognizer:
                 from rapidocr import RapidOCR
             self._rapid = RapidOCR()
             return self._rapid
-        except Exception:
+        except Exception as e:
+            import traceback
+            print("=== LỖI KHỞI TẠO RAPIDOCR ===")
+            print(f"Lỗi: {e}")
+            traceback.print_exc()
+            print("=============================")
             self._rapid_failed = True
             return None
 
