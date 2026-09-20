@@ -1,7 +1,20 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import os
+from pathlib import Path
+
+
+def _random_license_plate(vehicle_type: str) -> str:
+    """Sinh biển số VN: xe máy 59B112345, ô tô 51A12345."""
+    province = np.random.choice(["29", "30", "50", "51", "59", "92"])
+    if vehicle_type == "Car":
+        series = np.random.choice(list("ABCDEFGHKL"))
+        number = np.random.randint(10000, 99999)
+        return f"{province}{series}{number}"
+    series = np.random.choice(["B1", "B2", "C1", "F1", "M1"])
+    number = np.random.randint(10000, 99999)
+    return f"{province}{series}{number}"
+
 
 def generate_smart_parking_data(num_records=10000, seed=42):
     """
@@ -23,7 +36,7 @@ def generate_smart_parking_data(num_records=10000, seed=42):
     
     data = []
     
-    print(f"Đang sinh {num_records} dòng dữ liệu...")
+    print(f"Generating {num_records} records...")
     
     for _ in range(num_records):
         student = np.random.choice(student_ids)
@@ -74,6 +87,7 @@ def generate_smart_parking_data(num_records=10000, seed=42):
         # 5. Các feature giả lập thực tế khác
         # Xe máy chiếm đa số tuyệt đối so với ô tô tại Việt Nam
         vehicle_type = np.random.choice(['Motorbike', 'Car'], p=[0.98, 0.02])
+        license_plate = _random_license_plate(vehicle_type)
         # Khu vực đỗ xe yêu thích (A, B thường gần cổng/nhà xe chính)
         usual_zone = np.random.choice(['Zone_A', 'Zone_B', 'Zone_C', 'Zone_D'], p=[0.4, 0.3, 0.2, 0.1])
         # Cờ tuần thi (Tháng 12 thường là tháng thi)
@@ -81,6 +95,7 @@ def generate_smart_parking_data(num_records=10000, seed=42):
         
         data.append({
             'student_id': student,
+            'license_plate': license_plate,
             'vehicle_type': vehicle_type,
             'entry_time': entry_time.strftime('%Y-%m-%d %H:%M:%S'),
             'exit_time': exit_time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -100,15 +115,12 @@ def generate_smart_parking_data(num_records=10000, seed=42):
     return df
 
 if __name__ == "__main__":
-    # Đảm bảo thư mục tồn tại
-    output_dir = '../../data/raw'
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Sinh dữ liệu
+    project_root = Path(__file__).resolve().parents[2]
+    output_dir = project_root / "data" / "raw"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     df_parking = generate_smart_parking_data(num_records=15000)
-    
-    # Lưu ra CSV
-    output_path = os.path.join(output_dir, 'parking_data_raw.csv')
+    output_path = output_dir / "parking_data_raw.csv"
     df_parking.to_csv(output_path, index=False)
     print(f"✅ Đã lưu file dữ liệu thành công tại: {output_path}")
     print(f"📊 Kích thước dữ liệu: {df_parking.shape}")

@@ -6,11 +6,13 @@ Dự án Machine Learning cho hệ thống bãi đỗ xe thông minh (Smart Park
 
 - `data/` — dữ liệu thô, đã xử lý, và dữ liệu ngoài
 - `notebooks/` — các notebook Jupyter cho từng giai đoạn (thu thập, làm sạch, EDA, mô hình hóa...)
-- `src/` — mã nguồn Python (thu thập dữ liệu, feature engineering, huấn luyện mô hình, đánh giá)
-- `models/` — các mô hình đã huấn luyện (pickle)
+- `src/` — mã nguồn Python (dữ liệu, feature, mô hình thời gian gửi xe, nhận diện biển số)
+- `src/vision/` — OCR biển số, suy luận loại xe, sinh ảnh mẫu
+- `src/parking/` — vé vào/ra (SQLite) và phạt quá giờ
+- `models/` — mô hình đã huấn luyện (pickle) và `models/vision/` cho trọng số OCR
 - `outputs/` — biểu đồ và kết quả xuất ra
-- `app/` — ứng dụng web (Flask) demo hệ thống
-- `database/` — cơ sở dữ liệu SQLite
+- `app/` — ứng dụng web (Flask) demo hệ thống (`/api/checkin`, `/api/checkout`, `/api/scan-plate`)
+- `database/` — cơ sở dữ liệu SQLite (`parking.db`)
 - `docs/` — báo cáo, slide thuyết trình, sơ đồ, tài liệu tham khảo
 - `tests/` — unit test
 

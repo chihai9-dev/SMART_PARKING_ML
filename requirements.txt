@@ -7,3 +7,6 @@ jupyter
 flask
 joblib
 xgboost
+pillow
+opencv-python-headless
+rapidocr-onnxruntime

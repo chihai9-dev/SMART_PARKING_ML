@@ -4,51 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Parking AI System</title>
-    <!-- Thêm Bootstrap để giao diện đẹp và chuẩn responsive -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .ticket-box { 
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); 
-            color: white; 
-            border-radius: 12px; 
-            padding: 25px; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        .ticket-box {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 25px;
         }
-        .highlight { color: #f1c40f; font-weight: bold; font-size: 1.1em; }
-        .btn-checkin { background-color: #27ae60; border: none; padding: 12px; font-size: 1.1em; }
-        .btn-checkin:hover { background-color: #2ecc71; }
+        .highlight { color: #f1c40f; font-weight: bold; }
+        .btn-checkin { background-color: #27ae60; border: none; padding: 12px; }
+        .btn-checkout { background-color: #c0392b; border: none; padding: 12px; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="text-center mb-5 text-primary fw-bold">🚗 TỔNG ĐÀI SMART PARKING AI 🚗</h2>
-        
-        <div class="row justify-content-center gap-4">
-            <!-- Cột bên trái: Trạm Quẹt Thẻ -->
-            <div class="col-md-5">
+    <nav class="nav-bar">
+        <a href="/">Vào / Ra</a>
+        <a href="/parking">Cổng camera</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/history">Lịch sử</a>
+    </nav>
+    <div class="container mt-4 mb-5">
+        <h2 class="text-center mb-4 text-primary fw-bold">TỔNG ĐÀI SMART PARKING AI</h2>
+        <p class="text-center text-muted">Dự đoán nhóm thời gian gửi xe · Đề xuất khu · Phạt quá giờ · Đối chiếu biển số / loại xe</p>
+
+        <div class="row justify-content-center g-4">
+            <div class="col-lg-6">
                 <div class="card p-4">
-                    <h4 class="mb-4 text-secondary border-bottom pb-2">📍 Trạm kiểm soát (Check-in)</h4>
+                    <h4 class="mb-3 text-secondary border-bottom pb-2">Xe vào bãi</h4>
                     <form id="checkinForm">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Mã Sinh Viên</label>
-                            <input type="text" class="form-control" id="student_id" value="SV2023_CNTT" required>
+                            <label class="form-label fw-bold">Mã sinh viên</label>
+                            <input type="text" class="form-control" id="student_id" value="SV0001" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Thời gian quét thẻ</label>
+                            <label class="form-label fw-bold">Thời gian vào</label>
                             <input type="datetime-local" class="form-control" id="entry_time" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ảnh có biển số (tự đọc và ghi biển)</label>
+                            <input type="file" class="form-control" id="entry_image" accept="image/*">
+                            <div class="form-text" id="entry_ocr_status"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Biển số (OCR hoặc nhập tay)</label>
+                            <input type="text" class="form-control" id="entry_plate" placeholder="59B1-123.45" required>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Loại phương tiện</label>
+                                <label class="form-label fw-bold">Loại xe</label>
                                 <select class="form-select" id="vehicle">
                                     <option value="Motorbike">Xe máy</option>
                                     <option value="Car">Ô tô</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">Khu vực hay đỗ</label>
+                                <label class="form-label fw-bold">Khu hay đỗ</label>
                                 <select class="form-select" id="usual_zone">
                                     <option value="Zone_A">Khu A</option>
                                     <option value="Zone_B">Khu B</option>
@@ -57,86 +70,156 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mb-4">
+                        <div class="mb-3">
                             <label class="form-label fw-bold">Lịch sử đỗ trung bình (phút)</label>
                             <input type="number" class="form-control" id="rolling_avg" value="260" required>
                         </div>
-                        <button type="submit" class="btn btn-checkin text-white w-100 fw-bold shadow">
-                            XÁC NHẬN VÀO BÃI
-                        </button>
+                        <button type="submit" class="btn btn-checkin text-white w-100 fw-bold">XÁC NHẬN VÀO BÃI</button>
                     </form>
                 </div>
             </div>
 
-            <!-- Cột bên phải: Hiển thị Vé Xe & Dự đoán ML -->
-            <div class="col-md-5">
-                <div class="card p-4 h-100" id="resultCard" style="display: none;">
-                    <h4 class="mb-4 text-success border-bottom pb-2">✅ Cấp thẻ thành công</h4>
+            <div class="col-lg-6">
+                <div class="card p-4 mb-4" id="resultCard" style="display: none;">
+                    <h4 class="mb-3 text-success border-bottom pb-2">Vé vào</h4>
                     <div class="ticket-box">
-                        <h5 class="text-center mb-3 border-bottom border-light pb-2">VÉ XE ĐIỆN TỬ THÔNG MINH</h5>
-                        <p class="mb-1">👤 Sinh viên: <span class="highlight" id="res_student"></span></p>
-                        <p class="mb-3">📊 Hiện tại bãi đang có: <span class="highlight" id="res_demand"></span> chiếc xe</p>
-                        
-                        <div class="p-3 mt-3" style="background: rgba(255,255,255,0.1); border-radius: 8px;">
-                            <p class="mb-2 text-warning fw-bold"><small>🧠 HỆ THỐNG AI ĐIỀU PHỐI:</small></p>
-                            <p class="mb-1">▶ Dự đoán hành vi: <span class="highlight text-white" id="res_behavior"></span></p>
-                            <p class="mb-1">▶ Giờ trả xe dự kiến: <span class="highlight text-white" id="res_exit"></span></p>
-                            <p class="mb-0">▶ Khu vực đề xuất: <span class="highlight text-white" id="res_zone"></span></p>
-                        </div>
+                        <p>Sinh viên: <span class="highlight" id="res_student"></span></p>
+                        <p>Biển số: <span class="highlight" id="res_plate"></span></p>
+                        <p>Loại xe: <span class="highlight" id="res_vehicle"></span></p>
+                        <p>Nhu cầu hiện tại: <span class="highlight" id="res_demand"></span></p>
+                        <p>Hành vi dự đoán: <span class="highlight" id="res_behavior"></span></p>
+                        <p>Giờ ra dự kiến: <span class="highlight" id="res_exit"></span></p>
+                        <p class="mb-0">Khu đề xuất: <span class="highlight" id="res_zone"></span></p>
                     </div>
+                </div>
+
+                <div class="card p-4">
+                    <h4 class="mb-3 text-secondary border-bottom pb-2">Xe ra bãi</h4>
+                    <form id="checkoutForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ảnh biển số lúc ra</label>
+                            <input type="file" class="form-control" id="exit_image" accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Biển số lúc ra</label>
+                            <input type="text" class="form-control" id="exit_plate" placeholder="59B1-123.45" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Biển lúc vào (nếu muốn giả lập sai biển)</label>
+                            <input type="text" class="form-control" id="lookup_plate" placeholder="Để trống = tìm theo biển lúc ra">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Loại xe lúc ra</label>
+                            <select class="form-select" id="exit_vehicle">
+                                <option value="Motorbike">Xe máy</option>
+                                <option value="Car">Ô tô</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-checkout text-white w-100 fw-bold">XÁC NHẬN RA BÃI</button>
+                    </form>
+                    <div id="checkoutResult" class="mt-3" style="display:none;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Script gọi API Backend -->
     <script>
-        // Set mặc định giờ hiện tại cho ô input
         document.getElementById('entry_time').value = new Date().toISOString().slice(0, 16);
 
-        // Bắt sự kiện khi bấm nút XÁC NHẬN
+        document.getElementById('entry_image').addEventListener('change', async () => {
+            const file = document.getElementById('entry_image').files[0];
+            const status = document.getElementById('entry_ocr_status');
+            if (!file) return;
+            status.innerText = 'Đang đọc biển số từ ảnh...';
+            const fd = new FormData();
+            fd.append('image', file);
+            try {
+                const res = await fetch('/api/scan-plate', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success' && data.plate) {
+                    document.getElementById('entry_plate').value = data.plate;
+                    status.innerText = 'Đã nhận diện và lưu: ' + data.plate;
+                    if (data.vehicle_type) document.getElementById('vehicle').value = data.vehicle_type;
+                } else {
+                    status.innerText = data.message || 'Không đọc được biển. Hãy nhập tay.';
+                }
+            } catch (err) {
+                status.innerText = 'Lỗi khi gọi nhận diện.';
+            }
+        });
+
         document.getElementById('checkinForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Ngăn trình duyệt reload trang
-            
-            // Lấy dữ liệu từ Form
-            const payload = {
-                student_id: document.getElementById('student_id').value,
-                entry_time: document.getElementById('entry_time').value.replace('T', ' ') + ':00',
-                vehicle: document.getElementById('vehicle').value,
-                usual_zone: document.getElementById('usual_zone').value,
-                rolling_avg: document.getElementById('rolling_avg').value,
-                hist_overnight: 0
-            };
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('student_id', document.getElementById('student_id').value);
+            fd.append('entry_time', document.getElementById('entry_time').value.replace('T', ' ') + ':00');
+            fd.append('vehicle', document.getElementById('vehicle').value);
+            fd.append('usual_zone', document.getElementById('usual_zone').value);
+            fd.append('rolling_avg', document.getElementById('rolling_avg').value);
+            fd.append('hist_overnight', '0');
+            fd.append('plate', document.getElementById('entry_plate').value);
+            const img = document.getElementById('entry_image').files[0];
+            if (img) fd.append('image', img);
 
             try {
-                // Bắn API sang file app.py của Flask
-                const response = await fetch('/api/predict', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
+                const response = await fetch('/api/checkin', { method: 'POST', body: fd });
                 const data = await response.json();
-                
-                // Nếu backend trả về thành công, cập nhật giao diện
-                if(data.status === 'success') {
-                    document.getElementById('res_student').innerText = data.student_id;
-                    document.getElementById('res_demand').innerText = data.current_demand;
-                    document.getElementById('res_behavior').innerText = data.behavior;
-                    
-                    const hours = Math.floor(data.duration_minutes / 60);
-                    const mins = data.duration_minutes % 60;
-                    document.getElementById('res_exit').innerText = data.estimated_exit + ` (Đỗ ~${hours}h${mins}m)`;
-                    
-                    document.getElementById('res_zone').innerText = data.recommended_zone;
-                    
-                    // Hiển thị cái vé xe lên
+                if (data.status === 'success') {
+                    const pred = data.prediction;
+                    document.getElementById('res_student').innerText = pred.student_id;
+                    document.getElementById('res_plate').innerText = data.ticket.plate;
+                    document.getElementById('res_vehicle').innerText = data.ticket.vehicle_type;
+                    document.getElementById('res_demand').innerText = pred.current_demand ?? '—';
+                    document.getElementById('res_behavior').innerText = pred.behavior;
+                    const hours = Math.floor(pred.duration_minutes / 60);
+                    const mins = pred.duration_minutes % 60;
+                    document.getElementById('res_exit').innerText = pred.estimated_exit + ` (~${hours}h${mins}m)`;
+                    document.getElementById('res_zone').innerText = pred.recommended_zone;
                     document.getElementById('resultCard').style.display = 'block';
+                    document.getElementById('lookup_plate').value = data.ticket.plate;
+                    if (pred.model_warning) {
+                        alert(pred.model_warning);
+                    }
                 } else {
-                    alert('Lỗi từ Server: ' + data.message);
+                    alert('Lỗi: ' + data.message);
                 }
             } catch (error) {
-                alert('Mất kết nối tới Hệ thống Máy chủ AI!');
+                alert('Mất kết nối tới máy chủ.');
+            }
+        });
+
+        document.getElementById('checkoutForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('plate', document.getElementById('exit_plate').value);
+            fd.append('lookup_plate', document.getElementById('lookup_plate').value);
+            fd.append('vehicle', document.getElementById('exit_vehicle').value);
+            const img = document.getElementById('exit_image').files[0];
+            if (img) fd.append('image', img);
+
+            const box = document.getElementById('checkoutResult');
+            try {
+                const response = await fetch('/api/checkout', { method: 'POST', body: fd });
+                const data = await response.json();
+                box.style.display = 'block';
+                if (data.status !== 'success') {
+                    box.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    return;
+                }
+                const ok = data.allowed;
+                const pen = data.penalty;
+                box.innerHTML = `
+                    <div class="alert ${ok ? 'alert-success' : 'alert-danger'}">
+                        <p class="mb-1"><strong>${ok ? 'Cho phép ra' : 'Cảnh báo — không khớp hồ sơ vào'}</strong></p>
+                        <p class="mb-1">Biển số khớp: ${data.plate_match ? 'Có' : 'Không'}</p>
+                        <p class="mb-1">Loại xe khớp: ${data.vehicle_match ? 'Có' : 'Không'}</p>
+                        <p class="mb-1">Thời gian gửi: ${pen.actual_minutes} phút (dự đoán ${pen.predicted_minutes})</p>
+                        <p class="mb-1">Quá giờ: ${pen.overtime_minutes} phút · Phạt: ${pen.penalty_vnd.toLocaleString('vi-VN')} đ</p>
+                        <p class="mb-0">${(data.alerts || []).join(' ')}</p>
+                    </div>`;
+            } catch (error) {
+                box.style.display = 'block';
+                box.innerHTML = '<div class="alert alert-danger">Mất kết nối tới máy chủ.</div>';
             }
         });
     </script>

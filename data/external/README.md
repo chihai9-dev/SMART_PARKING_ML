@@ -1,3 +1,4 @@
 # External Data
 
-Thư mục chứa dữ liệu bổ sung từ nguồn bên ngoài (thời tiết, ngày lễ, v.v.)
+- Dữ liệu bổ sung (thời tiết, ngày lễ, lịch học, …)
+- `plates/` — ảnh biển số mẫu cho module nhận diện (`src/vision/`)

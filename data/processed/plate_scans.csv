@@ -1,0 +1,2 @@
+id,created_at,plate,valid,confidence,engine,source_filename,image_path
+1,2026-09-20T20:10:11,59B112345,1,0.9979326923688253,rapidocr,scene_59B112345.jpg,C:\Users\Admin\SMART_PARKING_ML\data\processed\scans\20260920_201011_760224_scene_59B112345.jpg
