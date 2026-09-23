@@ -8,10 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
             tbody.innerHTML = "";
             (data.tickets || []).forEach((t) => {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `<td>${t.id}</td><td>${t.student_id || ""}</td>
+                tr.innerHTML = `<td><strong>${t.ticket_code || ("#" + t.id)}</strong></td>
                     <td>${t.plate || ""}</td><td>${t.vehicle_type || ""}</td>
                     <td>${t.entry_time || ""}</td><td>${t.predicted_behavior || ""}</td>
-                    <td>${t.recommended_zone || ""}</td><td>${t.estimated_exit || ""}</td>`;
+                    <td>${t.recommended_zone || ""}</td><td>${t.estimated_exit || ""}</td><td>Đang gửi</td>`;
                 tbody.appendChild(tr);
             });
         })

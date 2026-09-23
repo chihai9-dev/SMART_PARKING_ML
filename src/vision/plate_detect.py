@@ -24,7 +24,7 @@ def _score_box(w: int, h: int, img_area: int) -> float:
     # Kích thước biển số: 
     # Ô tô (1 dòng) ratio ~ 4.7
     # Xe máy (2 dòng) ratio ~ 1.3 - 1.4
-    if 1.15 <= ratio <= 6.0 and 0.004 <= area_ratio <= 0.45:
+    if 1.15 <= ratio <= 6.0 and 0.003 <= area_ratio <= 0.35:
         ideal = 2.2 if ratio < 2.4 else 4.2
         
         # ĐIỂM TỈ LỆ (Càng gần hình dáng biển số càng tốt)
@@ -109,7 +109,13 @@ def find_plate_regions(image: np.ndarray, max_candidates: int = 5) -> list[dict[
     candidates.sort(key=lambda c: c["score"], reverse=True)
     if not candidates:
         candidates.append({"bbox": [0, 0, w, h], "crop": image, "score": 0.05})
-    return candidates[:max_candidates]
+    # Luôn giữ toàn ảnh ở cuối như phương án dự phòng. Trường hợp webcam
+    # có biển số lớn nhưng các contour không rõ, OCR vẫn còn cơ hội đọc được.
+    full = {"bbox": [0, 0, w, h], "crop": image, "score": 0.02}
+    candidates = sorted(candidates, key=lambda c: c["score"], reverse=True)
+    normal = candidates[:max(1, max_candidates - 1)]
+    normal.append(full)
+    return normal
 
 
 def annotate_plate(image: np.ndarray, bbox: list[int], label: str = "") -> np.ndarray:

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking - Cổng tự động</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background:#f4f7fa; }
+        .hero { background:linear-gradient(135deg,#17202a,#2f80ed); color:#fff; border-radius:18px; }
+        .camera-frame { background:#0b1117; border-radius:16px; overflow:hidden; position:relative; }
+        #cameraVideo { width:100%; display:block; aspect-ratio:16/9; object-fit:cover; background:#0b1117; }
+        #captureCanvas { display:none; }
+        .mode-btn.active { box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+        .status-pill { border-radius:999px; padding:.45rem .8rem; font-weight:600; }
+        .status-pill.wait { background:#fff3cd; color:#856404; }
+        .status-pill.ok { background:#d1e7dd; color:#0f5132; }
+        .status-pill.error { background:#f8d7da; color:#842029; }
+        .ticket-card { border:2px solid #198754; }
+        .ticket-image { width:100%; max-height:260px; object-fit:contain; background:#eef1f4; border-radius:10px; }
+        .mini-table td,.mini-table th { padding:.55rem .6rem; vertical-align:middle; }
+        .mode-description { min-height:48px; }
+    </style>
+</head>
+<body>
+<nav class="nav-bar">
+    <a href="/">Cổng tự động</a>
+    <a href="/dashboard">Xe đang gửi</a>
+    <a href="/history">Lịch sử vé</a>
+</nav>
+
+<div class="container py-4 pb-5">
+    <div class="hero p-4 p-lg-5 mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h1 class="h2 mb-2">SMART PARKING</h1>
+                <p class="mb-0 opacity-75"> HỆ THỐNG QUẢN LÝ BÃI ĐỖ XE THÔNG MINH.</p>
+            </div>
+            <span id="systemStatus" class="status-pill wait">Camera chưa bật</span>
+        </div>
+    </div>
+
+    <div class="card p-4 mb-4 shadow-sm">
+        <div class="row g-3 align-items-stretch">
+            <div class="col-lg-8">
+                <div class="camera-frame">
+                    <video id="cameraVideo" autoplay playsinline muted></video>
+                    <canvas id="captureCanvas"></canvas>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+                    <button class="btn btn-primary" id="startBtn">Bật camera</button>
+                    <button class="btn btn-outline-secondary" id="stopBtn" disabled>Tắt camera</button>
+                    <select class="form-select" id="cameraSelect" style="max-width:320px;" disabled>
+                        <option value="">Camera mặc định</option>
+                    </select>
+                </div>
+                <div class="small text-muted mt-2">
+                    Khi camera hoạt động, Hệ thống sẽ tự chụp biển số và tạo/cập nhật vé điện tử khi đủ 3 frame ổn định. <strong>Không cần nhấn nút tạo vé.</strong>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="border rounded p-3 h-100 bg-light">
+                    <h3 class="h5">Chế độ cổng</h3>
+                    <div class="btn-group w-100 mb-3" role="group">
+                        <button type="button" class="btn btn-success mode-btn active" id="entryModeBtn">CỔNG VÀO</button>
+                        <button type="button" class="btn btn-danger mode-btn" id="exitModeBtn">CỔNG RA</button>
+                    </div>
+                    <div id="modeDescription" class="mode-description small text-muted">
+                        Xe xuất hiện ổn định trước camera → hệ thống tự tạo một vé mới.
+                    </div>
+                    <hr>
+                    <div class="mb-2">Biển số đang nhận: <strong id="livePlate">—</strong></div>
+                    <div class="mb-2">Độ tin cậy: <span id="liveConfidence">—</span></div>
+                    <div class="mb-2">OCR: <span id="liveEngine">—</span></div>
+                    <div>Ổn định: <span id="stableCount">0/3</span></div>
+                    <div id="liveMessage" class="small text-muted mt-3">Bật camera để bắt đầu.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-4 mb-4 ticket-card" id="ticketCard" style="display:none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h4 mb-0">Vé điện tử vừa xử lý</h2>
+            <span id="ticketStatus" class="badge text-bg-success">Đang gửi</span>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="row g-2">
+                    <div class="col-md-6"><div class="small text-muted">Mã vé</div><div class="fs-4 fw-bold" id="ticketCode">—</div></div>
+                    <div class="col-md-6"><div class="small text-muted">Biển số</div><div class="fs-4 fw-bold" id="ticketPlate">—</div></div>
+                    <div class="col-md-6"><div class="small text-muted">Thời gian vào</div><div id="ticketEntryTime">—</div></div>
+                    <div class="col-md-6"><div class="small text-muted">Thời gian ra</div><div id="ticketExitTime">—</div></div>
+                    <div class="col-md-6"><div class="small text-muted">Loại xe</div><div id="ticketVehicle">—</div></div>
+                    <div class="col-md-6"><div class="small text-muted">Trạng thái</div><div id="ticketStatusText">—</div></div>
+                </div>
+                <div id="ticketMessage" class="alert alert-success mt-3 mb-0"></div>
+            </div>
+            <div class="col-lg-5">
+                <div class="small text-muted mb-1">Hình ảnh biển số lưu trong vé</div>
+                <img id="ticketPlateImage" class="ticket-image" alt="Ảnh biển số">
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-4 shadow-sm">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h4 mb-0">Vé trong database</h2>
+            <button class="btn btn-outline-primary btn-sm" id="refreshBtn">Làm mới</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered mini-table" id="ticketTable">
+                <thead class="table-light">
+                <tr>
+                    <th>Mã vé</th>
+                    <th>Biển số</th>
+                    <th>Vào</th>
+                    <th>Ra</th>
+                    <th>Trạng thái</th>
+                    <th>Ảnh biển</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const video = document.getElementById('cameraVideo');
+const canvas = document.getElementById('captureCanvas');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const entryModeBtn = document.getElementById('entryModeBtn');
+const exitModeBtn = document.getElementById('exitModeBtn');
+const modeDescription = document.getElementById('modeDescription');
+const systemStatus = document.getElementById('systemStatus');
+const liveMessage = document.getElementById('liveMessage');
+const cameraSelect = document.getElementById('cameraSelect');
+let stream = null;
+let mode = 'entry';
+let scanTimer = null;
+let scanInFlight = false;
+let stablePlate = '';
+let stableCount = 0;
+let lastProcessedPlate = '';
+const STABLE_REQUIRED = 3;
+let cooldownUntil = 0;
+
+function setSystemStatus(text, type='wait') {
+    systemStatus.textContent = text;
+    systemStatus.className = 'status-pill ' + type;
+}
+
+function setMode(nextMode) {
+    mode = nextMode;
+    stablePlate = '';
+    stableCount = 0;
+    lastProcessedPlate = '';
+    document.getElementById('stableCount').textContent = `0/${STABLE_REQUIRED}`;
+    entryModeBtn.classList.toggle('active', mode === 'entry');
+    exitModeBtn.classList.toggle('active', mode === 'exit');
+    modeDescription.textContent = mode === 'entry'
+        ? 'Xe xuất hiện ổn định trước camera → hệ thống tự tạo một vé mới.'
+        : 'Xe xuất hiện ổn định trước camera → hệ thống tự tìm vé mở và tự cập nhật thành đã trả xe.';
+    if (stream) liveMessage.textContent = mode === 'entry' ? 'Đang chờ xe vào...' : 'Đang chờ xe ra...';
+}
+
+function setCameraButtons(running) {
+    startBtn.disabled = running;
+    stopBtn.disabled = !running;
+    cameraSelect.disabled = running;
+}
+
+function cameraErrorMessage(err) {
+    const name = err?.name || 'UnknownError';
+    const detail = err?.message ? ` | ${err.message}` : '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        return `Chrome/Edge đang từ chối camera (${name}). Vào biểu tượng bên trái thanh địa chỉ → Quyền/Camera → Cho phép, sau đó tải lại trang.${detail}`;
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        return `Không tìm thấy webcam (${name}). Hãy kiểm tra Camera của Windows và thử lại.${detail}`;
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+        return `Webcam đang bị ứng dụng khác giữ (${name}). Đóng Camera/Zoom/Teams/tab khác rồi thử lại.${detail}`;
+    }
+    if (name === 'OverconstrainedError') {
+        return `Thiết lập camera không phù hợp (${name}). Hãy chọn Camera mặc định hoặc thử lại.${detail}`;
+    }
+    if (name === 'SecurityError') {
+        return `Trình duyệt từ chối truy cập camera (${name}). Hãy mở http://127.0.0.1:5000 hoặc http://localhost:5000.${detail}`;
+    }
+    return `Không mở được camera: ${name}${detail}`;
+}
+
+async function populateCameraList() {
+    try {
+        if (!navigator.mediaDevices?.enumerateDevices) return;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const current = cameraSelect.value;
+        cameraSelect.innerHTML = '';
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        if (!cams.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Không tìm thấy webcam';
+            cameraSelect.appendChild(opt);
+            return;
+        }
+        cams.forEach((d, i) => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId;
+            opt.textContent = d.label || `Camera ${i + 1}`;
+            cameraSelect.appendChild(opt);
+        });
+        if (current && cams.some(d => d.deviceId === current)) cameraSelect.value = current;
+    } catch (err) {
+        console.warn('enumerateDevices error:', err);
+    }
+}
+
+async function requestCameraStream(deviceId='') {
+    const constraints = deviceId
+        ? { video: { deviceId: { exact: deviceId } }, audio: false }
+        : { video: true, audio: false };
+    return navigator.mediaDevices.getUserMedia(constraints);
+}
+
+async function startCamera() {
+    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        setSystemStatus('Trang không được phép dùng camera', 'error');
+        liveMessage.textContent = 'Hãy mở đúng http://127.0.0.1:5000 hoặc http://localhost:5000.';
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setSystemStatus('Trình duyệt không hỗ trợ camera', 'error');
+        liveMessage.textContent = 'Chrome/Edge không cung cấp getUserMedia trên trang này.';
+        return;
+    }
+
+    try {
+        if (stream) stopCamera();
+        const deviceId = cameraSelect.value || '';
+
+        try {
+            stream = await requestCameraStream(deviceId);
+        } catch (firstErr) {
+            // Nếu chọn camera cụ thể lỗi, thử lại camera mặc định.
+            if (deviceId) {
+                stream = await requestCameraStream('');
+            } else {
+                throw firstErr;
+            }
+        }
+
+        video.srcObject = stream;
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        try { await video.play(); } catch (playErr) {
+            console.warn('video.play() warning:', playErr);
+        }
+
+        await populateCameraList();
+        setCameraButtons(true);
+        setSystemStatus(mode === 'entry' ? 'Tự động – cổng vào' : 'Tự động – cổng ra', 'ok');
+        liveMessage.textContent = mode === 'entry' ? 'Đã mở camera. Đang chờ xe vào...' : 'Đã mở camera. Đang chờ xe ra...';
+        startAutoScan();
+    } catch (err) {
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+        }
+        video.srcObject = null;
+        setSystemStatus(`Lỗi camera: ${err?.name || 'UnknownError'}`, 'error');
+        liveMessage.textContent = cameraErrorMessage(err);
+        setCameraButtons(false);
+        await populateCameraList();
+        console.error('Camera error:', err);
+    }
+}
+
+function stopCamera() {
+    if (scanTimer) {
+        clearInterval(scanTimer);
+        scanTimer = null;
+    }
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+    }
+    video.srcObject = null;
+    scanInFlight = false;
+    stablePlate = '';
+    stableCount = 0;
+    document.getElementById('stableCount').textContent = `0/${STABLE_REQUIRED}`;
+    setSystemStatus('Camera đã tắt', 'wait');
+    liveMessage.textContent = 'Bật camera để bắt đầu.';
+    setCameraButtons(false);
+}
+
+function captureFrame() {
+    if (!stream || !video.videoWidth) return null;
+    // Giảm kích thước frame gửi lên server để OCR nhanh hơn, camera vẫn hiển thị ở độ phân giải gốc.
+    const maxWidth = 960;
+    const scale = Math.min(1, maxWidth / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.78));
+}
+
+async function scanOnce() {
+    if (!stream || scanInFlight || Date.now() < cooldownUntil) return;
+    const blob = await captureFrame();
+    if (!blob) return;
+    scanInFlight = true;
+    const fd = new FormData();
+    fd.append('image', blob, `auto_${Date.now()}.jpg`);
+    try {
+        const res = await fetch('/api/preview-plate', { method: 'POST', body: fd });
+        const data = await res.json();
+        document.getElementById('livePlate').textContent = data.plate || '—';
+        document.getElementById('liveConfidence').textContent = Number(data.confidence || 0).toFixed(2);
+        document.getElementById('liveEngine').textContent = data.engine || 'none';
+
+        if (data.valid && data.plate) {
+            if (stablePlate === data.plate) {
+                stableCount += 1;
+            } else {
+                stablePlate = data.plate;
+                stableCount = 1;
+            }
+            document.getElementById('stableCount').textContent = `${Math.min(stableCount, STABLE_REQUIRED)}/${STABLE_REQUIRED}`;
+            liveMessage.textContent = `Đã thấy ${data.plate}. Đang xác nhận ${stableCount}/${STABLE_REQUIRED} frame...`;
+
+            if (stableCount >= STABLE_REQUIRED && lastProcessedPlate !== data.plate) {
+                lastProcessedPlate = data.plate;
+                cooldownUntil = Date.now() + 9000;
+                liveMessage.textContent = `Đã nhận diện ổn định ${data.plate}. Đang tự tạo/cập nhật vé...`;
+                await createGateEvent(blob, data.plate, data);
+            }
+        } else {
+            stablePlate = '';
+            stableCount = 0;
+            document.getElementById('stableCount').textContent = `0/${STABLE_REQUIRED}`;
+            liveMessage.textContent = data.message || 'Chưa nhận được biển số hợp lệ.';
+        }
+    } catch (err) {
+        liveMessage.textContent = 'Không gọi được máy chủ Flask.';
+    } finally {
+        scanInFlight = false;
+    }
+}
+
+async function createGateEvent(blob, plateHint, previewData) {
+    const fd = new FormData();
+    fd.append('image', blob, `gate_${mode}_${Date.now()}.jpg`);
+    fd.append('mode', mode);
+    fd.append('plate_hint', plateHint);
+    fd.append('preview_confidence', String(previewData?.confidence || 0));
+    if (previewData?.crop_jpeg_b64) fd.append('preview_crop_jpeg_b64', previewData.crop_jpeg_b64);
+    try {
+        const res = await fetch('/api/gate-event', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.ticket) {
+            showTicket(data.ticket, data.event, data.message, data.event === 'closed');
+            await loadTickets();
+        }
+        if (data.event === 'duplicate') {
+            liveMessage.textContent = `Vé đã tồn tại: ${data.ticket.ticket_code}. Không tạo vé trùng.`;
+        } else if (data.event === 'created') {
+            liveMessage.textContent = `ĐÃ TẠO VÉ ${data.ticket.ticket_code} cho ${data.ticket.plate}.`;
+        } else if (data.event === 'closed') {
+            liveMessage.textContent = `ĐÃ TRẢ XE ${data.ticket.ticket_code}.`;
+        } else if (data.event === 'not_found') {
+            liveMessage.textContent = data.message || 'Không tìm thấy vé đang gửi.';
+        } else if (data.status === 'error') {
+            liveMessage.textContent = data.message || 'Không xử lý được sự kiện cổng.';
+        }
+    } catch (err) {
+        liveMessage.textContent = 'Lỗi khi tạo/cập nhật vé.';
+    }
+}
+
+function startAutoScan() {
+    if (scanTimer) clearInterval(scanTimer);
+    // Chụp định kỳ nhưng không gửi frame mới khi OCR trước đó chưa xong.
+    scanTimer = setInterval(scanOnce, 1200);
+}
+
+function statusLabel(status) {
+    if (status === 'open') return 'Đang gửi';
+    if (status === 'closed') return 'Đã trả xe';
+    return 'Cảnh báo';
+}
+
+function showTicket(ticket, event, message, justClosed=false) {
+    document.getElementById('ticketCard').style.display = 'block';
+    document.getElementById('ticketCode').textContent = ticket.ticket_code || `#${ticket.id}`;
+    document.getElementById('ticketPlate').textContent = ticket.plate || '—';
+    document.getElementById('ticketEntryTime').textContent = ticket.entry_time || '—';
+    document.getElementById('ticketExitTime').textContent = ticket.exit_time || '—';
+    document.getElementById('ticketVehicle').textContent = ticket.vehicle_type || '—';
+    document.getElementById('ticketStatusText').textContent = statusLabel(ticket.status);
+    document.getElementById('ticketStatus').textContent = statusLabel(ticket.status);
+    document.getElementById('ticketStatus').className = ticket.status === 'closed' ? 'badge text-bg-secondary' : ticket.status === 'open' ? 'badge text-bg-success' : 'badge text-bg-danger';
+    const msg = document.getElementById('ticketMessage');
+    msg.textContent = message || (justClosed ? 'Đã trả xe.' : 'Đã tạo vé.');
+    msg.className = ticket.status === 'alert' ? 'alert alert-warning mt-3 mb-0' : 'alert alert-success mt-3 mb-0';
+    const plateImg = document.getElementById('ticketPlateImage');
+    if (ticket.plate_image_path) {
+        plateImg.src = '/ticket-image/' + encodeURIComponent(ticket.plate_image_path);
+        plateImg.style.display = 'block';
+    } else {
+        plateImg.style.display = 'none';
+    }
+}
+
+async function loadTickets() {
+    try {
+        const res = await fetch('/api/tickets?limit=30');
+        const data = await res.json();
+        const tbody = document.querySelector('#ticketTable tbody');
+        tbody.innerHTML = '';
+        (data.tickets || []).forEach(t => {
+            const tr = document.createElement('tr');
+            const imageCell = t.plate_image_path
+                ? `<a href="/ticket-image/${encodeURIComponent(t.plate_image_path)}" target="_blank">Xem ảnh</a>`
+                : '—';
+            tr.innerHTML = `<td><strong>${t.ticket_code || ('#' + t.id)}</strong></td>
+                <td>${t.plate || ''}</td><td>${t.entry_time || ''}</td><td>${t.exit_time || '—'}</td>
+                <td>${statusLabel(t.status)}</td><td>${imageCell}</td>`;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        // Không chặn camera.
+    }
+}
+
+entryModeBtn.addEventListener('click', () => setMode('entry'));
+exitModeBtn.addEventListener('click', () => setMode('exit'));
+startBtn.addEventListener('click', startCamera);
+stopBtn.addEventListener('click', stopCamera);
+cameraSelect.addEventListener('change', async () => {
+    if (stream) {
+        stopCamera();
+        await startCamera();
+    }
+});
+document.getElementById('refreshBtn').addEventListener('click', loadTickets);
+window.addEventListener('beforeunload', stopCamera);
+setMode('entry');
+loadTickets();
+setTimeout(() => startCamera(), 500);
+setInterval(loadTickets, 3000);
+</script>
+</body>
+</html>

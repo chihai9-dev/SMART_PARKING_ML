@@ -21,22 +21,50 @@ _PLATE_RE = re.compile(r"^\d{2}[A-Z]{1,3}\d{4,6}$")
 
 
 _OCR_DIGIT_FIX = {"O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "Z": "2", "S": "5"}
+_OCR_LETTER_FIX = {"0": "O", "1": "I", "2": "Z", "5": "S", "8": "B"}
 
 
 def normalize_plate(raw: Optional[str]) -> str:
-    """Bỏ dấu chấm, gạch, khoảng trắng; viết hoa; sửa nhầm OCR ở vị trí số."""
+    """Chuẩn hóa biển số Việt Nam và sửa một số lỗi OCR thường gặp.
+
+    OCR camera hay nhầm O/0, I/1, S/5... Vì phần đầu biển có thể là chữ
+    còn phần đuôi chủ yếu là số, hàm xử lý từng vùng thay vì đổi toàn chuỗi.
+    """
     if raw is None:
         return ""
     text = re.sub(r"[^A-Z0-9]", "", str(raw).upper())
     if not text:
         return ""
+
     chars = list(text)
-    for i, ch in enumerate(chars):
-        # Mã tỉnh (2 số đầu) và phần số đuôi (từ ký tự thứ 4).
-        if i < 2 or i >= 4:
-            chars[i] = _OCR_DIGIT_FIX.get(ch, ch)
-        elif i == 3 and ch in _OCR_DIGIT_FIX and len(chars) >= 9:
-            chars[i] = _OCR_DIGIT_FIX[ch]
+
+    # Hai ký tự đầu luôn là mã tỉnh/thành dạng số.
+    for i in range(min(2, len(chars))):
+        chars[i] = _OCR_DIGIT_FIX.get(chars[i], chars[i])
+
+    if len(chars) <= 2:
+        return "".join(chars)
+
+    # Phần sau mã tỉnh: tìm chuỗi số ở cuối, thường dài 4-6 ký tự.
+    # Các ký tự ngay trước phần số được coi là seri chữ và sửa 0/1/... -> O/I/...
+    tail_len = 0
+    for ch in reversed(chars):
+        if ch.isdigit():
+            tail_len += 1
+        else:
+            break
+    tail_len = min(tail_len, 6)
+    prefix_end = len(chars) - tail_len if tail_len >= 4 else min(len(chars), 5)
+
+    for i in range(2, prefix_end):
+        if chars[i].isdigit():
+            chars[i] = _OCR_LETTER_FIX.get(chars[i], chars[i])
+
+    # Phần số cuối: sửa ký tự OCR bị đọc thành chữ.
+    digit_start = max(prefix_end, 2)
+    for i in range(digit_start, len(chars)):
+        chars[i] = _OCR_DIGIT_FIX.get(chars[i], chars[i])
+
     return "".join(chars)
 
 
@@ -96,9 +124,9 @@ class PlateRecognizer:
             return self._rapid
         try:
             try:
-                from rapidocr_onnxruntime import RapidOCR
-            except ImportError:
                 from rapidocr import RapidOCR
+            except ImportError:
+                from rapidocr_onnxruntime import RapidOCR
             self._rapid = RapidOCR()
             return self._rapid
         except Exception as e:
@@ -130,37 +158,69 @@ class PlateRecognizer:
 
         rapid = self._rapidocr()
         if rapid is not None:
-            output = rapid(rgb)
-            items: list[tuple[str, float]] = []
-            if hasattr(output, "txts") and output.txts:
-                scores = list(getattr(output, "scores", []) or [])
-                for i, txt in enumerate(output.txts):
-                    score = float(scores[i]) if i < len(scores) else 0.0
-                    items.append((str(txt), score))
-            else:
-                rows = output[0] if isinstance(output, tuple) else output
-                if rows:
-                    for row in rows:
-                        if row is None:
-                            continue
-                        if isinstance(row, dict):
-                            items.append((str(row.get("txt") or row.get("text") or ""), float(row.get("score") or 0)))
-                        elif len(row) >= 3:
-                            items.append((str(row[1]), float(row[2])))
-            return items, "rapidocr"
+            try:
+                output = rapid(rgb)
+                items: list[tuple[str, float]] = []
+                # RapidOCR versions return either an object with txts/scores
+                # or a tuple/list containing [box, text, score] rows.
+                if hasattr(output, "txts") and output.txts:
+                    scores = list(getattr(output, "scores", []) or [])
+                    for i, txt in enumerate(output.txts):
+                        score = float(scores[i]) if i < len(scores) else 0.0
+                        items.append((str(txt), score))
+                else:
+                    rows = output[0] if isinstance(output, tuple) else output
+                    if rows:
+                        for row in rows:
+                            if row is None:
+                                continue
+                            if isinstance(row, dict):
+                                items.append((str(row.get("txt") or row.get("text") or ""), float(row.get("score") or 0)))
+                            elif len(row) >= 3:
+                                items.append((str(row[1]), float(row[2])))
+                if items:
+                    return items, "rapidocr"
+            except Exception as exc:
+                print(f"RapidOCR frame error: {exc}")
 
         reader = self._easyocr()
         if reader is not None:
-            results = reader.readtext(rgb)
-            items = [(str(text), float(conf)) for _, text, conf in results]
-            return items, "easyocr"
+            try:
+                results = reader.readtext(rgb)
+                items = [(str(text), float(conf)) for _, text, conf in results]
+                if items:
+                    return items, "easyocr"
+            except Exception as exc:
+                print(f"EasyOCR frame error: {exc}")
 
-        tess = _try_tesseract(prepared)
-        if tess is not None:
-            plate, conf, raw = tess
-            return [(raw, conf)], "tesseract"
+        # Tesseract fallback: thử vài kiểu tiền xử lý/PSM để tăng khả năng đọc
+        # biển bị nhỏ, lệch sáng hoặc có hai dòng.
+        best_items: list[tuple[str, float]] = []
+        variants: list[np.ndarray] = [prepared]
+        try:
+            import cv2
+            gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+            gray = cv2.resize(gray, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)
+            _, otsu = cv2.threshold(clahe, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            adaptive = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 7)
+            variants.extend([cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR), cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR)])
+        except Exception:
+            pass
 
-        return [], "none"
+        for variant in variants:
+            for psm in (7, 6, 11):
+                result = _try_tesseract(variant, psm=psm)
+                if result is None:
+                    continue
+                plate, conf, raw = result
+                if not raw:
+                    continue
+                score = (2.0 if is_valid_vn_plate(plate) else 0.0) + conf + min(len(plate), 10) / 100.0
+                current_score = (2.0 if any(is_valid_vn_plate(normalize_plate(t)) for t, _ in best_items) else 0.0) + (best_items[0][1] if best_items else 0.0)
+                if not best_items or score > current_score:
+                    best_items = [(raw, conf)]
+        return best_items, "tesseract" if best_items else "none"
 
     def recognize(self, source: ImageInput) -> dict[str, Any]:
         image = resize_max(load_image(source), 1600)
@@ -201,7 +261,7 @@ class PlateRecognizer:
             }
 
         if engine == "none" and not best["plate"]:
-            best["message"] = "Chưa cài engine OCR. Chạy: pip install rapidocr-onnxruntime"
+            best["message"] = "Chưa cài engine OCR. Chạy: python -m pip install rapidocr onnxruntime"
 
         bbox = best.get("bbox") or [0, 0, image.shape[1], image.shape[0]]
         x, y, bw, bh = bbox
@@ -229,7 +289,7 @@ def recognize_plate(source: ImageInput) -> dict[str, Any]:
     return get_recognizer().recognize(source)
 
 
-def _try_tesseract(image_bgr: np.ndarray) -> Optional[tuple[str, float, str]]:
+def _try_tesseract(image_bgr: np.ndarray, psm: int = 7) -> Optional[tuple[str, float, str]]:
     try:
         import pytesseract
         from PIL import Image
@@ -239,7 +299,7 @@ def _try_tesseract(image_bgr: np.ndarray) -> Optional[tuple[str, float, str]]:
     pil = Image.fromarray(rgb)
     raw = pytesseract.image_to_string(
         pil,
-        config="--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.",
+        config=f"--psm {psm} -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.",
     )
     plate = normalize_plate(raw)
     conf = 0.7 if is_valid_vn_plate(plate) else 0.3 if plate else 0.0

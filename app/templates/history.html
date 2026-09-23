@@ -18,8 +18,8 @@
         <table class="data" id="histTable">
             <thead>
                 <tr>
-                    <th>ID</th><th>Biển vào</th><th>Biển ra</th><th>Khớp biển</th>
-                    <th>Khớp loại</th><th>Quá giờ (phút)</th><th>Phạt (đ)</th><th>Trạng thái</th>
+                    <th>Mã vé</th><th>Biển vào</th><th>Biển ra</th><th>Thời gian vào</th><th>Thời gian ra</th>
+                    <th>Khớp biển</th><th>Khớp loại</th><th>Trạng thái</th><th>Ảnh biển</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -35,9 +35,11 @@
                 const tr = document.createElement('tr');
                 const plateOk = t.plate_match == null ? '—' : (t.plate_match ? 'Có' : 'Không');
                 const vehOk = t.vehicle_match == null ? '—' : (t.vehicle_match ? 'Có' : 'Không');
-                tr.innerHTML = `<td>${t.id}</td><td>${t.plate || ''}</td><td>${t.exit_plate || ''}</td>
-                    <td>${plateOk}</td><td>${vehOk}</td><td>${t.overtime_minutes ?? ''}</td>
-                    <td>${t.penalty_vnd ?? ''}</td><td>${t.status}</td>`;
+                const status = t.status === 'open' ? 'Đang gửi' : t.status === 'closed' ? 'Đã trả xe' : 'Cảnh báo';
+                const image = t.plate_image_path ? `<a href="/ticket-image/${encodeURIComponent(t.plate_image_path)}" target="_blank">Xem</a>` : '—';
+                tr.innerHTML = `<td><strong>${t.ticket_code || ('#' + t.id)}</strong></td><td>${t.plate || ''}</td><td>${t.exit_plate || '—'}</td>
+                    <td>${t.entry_time || ''}</td><td>${t.exit_time || '—'}</td><td>${plateOk}</td><td>${vehOk}</td>
+                    <td>${status}</td><td>${image}</td>`;
                 tbody.appendChild(tr);
             });
         }

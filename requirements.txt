@@ -8,5 +8,7 @@ flask
 joblib
 xgboost
 pillow
-opencv-python-headless
-rapidocr-onnxruntime
+opencv-python
+rapidocr
+onnxruntime
+pytesseract

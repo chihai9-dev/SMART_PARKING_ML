@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from datetime import datetime
 import base64
 import os
@@ -13,7 +13,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from src.parking.penalty import compute_penalty
-from src.parking.tickets import SCAN_DIR, TicketStore
+from src.parking.tickets import SCAN_DIR, TICKET_IMAGE_DIR, TicketStore
 from src.vision.plate_ocr import is_valid_vn_plate, normalize_plate, plates_match, recognize_plate
 from src.vision.vehicle_type import canonicalize_vehicle_type, infer_vehicle_type, vehicle_types_match
 
@@ -127,6 +127,22 @@ def _typed_plate():
     return request.form.get("plate") or ""
 
 
+def _save_ticket_images(image_bytes: bytes, ocr: dict, prefix: str) -> tuple[str, str]:
+    """Lưu ảnh toàn cảnh và ảnh crop biển số cho vé."""
+    TICKET_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    image_name = f"{stamp}_{prefix}.jpg"
+    image_path = TICKET_IMAGE_DIR / image_name
+    image_path.write_bytes(image_bytes)
+
+    plate_name = ""
+    crop_b64 = ocr.get("crop_jpeg_b64") if isinstance(ocr, dict) else None
+    if crop_b64:
+        plate_name = f"{stamp}_{prefix}_plate.jpg"
+        (TICKET_IMAGE_DIR / plate_name).write_bytes(base64.b64decode(crop_b64))
+    return image_name, plate_name
+
+
 def _plate_from_request(image_bytes):
     typed = normalize_plate(_typed_plate())
     ocr = None
@@ -140,7 +156,7 @@ def _plate_from_request(image_bytes):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("gate.html")
 
 
 @app.route("/dashboard")
@@ -150,7 +166,7 @@ def dashboard():
 
 @app.route("/parking")
 def parking():
-    return render_template("parking.html")
+    return render_template("gate.html")
 
 
 @app.route("/history")
@@ -220,6 +236,196 @@ def scan_plate():
             "saved": record,
             "image_path": str(image_path),
             "crop_path": crop_path,
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/ticket-image/<path:filename>")
+def ticket_image(filename):
+    # Chỉ phục vụ file trong thư mục ảnh vé, tránh cho phép truy cập đường dẫn tùy ý.
+    return send_from_directory(TICKET_IMAGE_DIR, filename)
+
+
+@app.route("/api/preview-plate", methods=["POST"])
+def preview_plate():
+    """OCR preview cho camera tự động, không tạo vé và không ghi ticket."""
+    try:
+        uploaded = request.files.get("image")
+        if not uploaded or not uploaded.filename:
+            return jsonify({"status": "error", "message": "Không có ảnh camera."}), 400
+        image_bytes = uploaded.read()
+        ocr = recognize_plate(image_bytes)
+        plate = normalize_plate(ocr.get("plate") or "")
+        vehicle = infer_vehicle_type(source=image_bytes, plate=plate)
+        return jsonify({
+            "status": "success",
+            "plate": plate,
+            "valid": bool(ocr.get("valid")),
+            "confidence": ocr.get("confidence", 0),
+            "engine": ocr.get("engine", "none"),
+            "message": ocr.get("message", ""),
+            "vehicle_type": vehicle.get("vehicle_type"),
+            "bbox": ocr.get("bbox"),
+            "annotated_jpeg_b64": ocr.get("annotated_jpeg_b64"),
+            "crop_jpeg_b64": ocr.get("crop_jpeg_b64"),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/gate-event", methods=["POST"])
+def gate_event():
+    """Tự động nhận diện biển số rồi tạo vé vào hoặc đóng vé ra."""
+    try:
+        mode = (request.form.get("mode") or (request.json or {}).get("mode") or "entry").lower()
+        if mode not in {"entry", "exit"}:
+            return jsonify({"status": "error", "message": "mode phải là entry hoặc exit."}), 400
+
+        uploaded = request.files.get("image")
+        if not uploaded or not uploaded.filename:
+            return jsonify({"status": "error", "message": "Không có ảnh từ camera."}), 400
+
+        image_bytes = uploaded.read()
+        ocr = recognize_plate(image_bytes)
+
+        # Camera đã nhận diện ổn định trước đó. Dùng chính kết quả preview làm
+        # fallback để tránh trường hợp frame thứ hai bị rung/sáng khác khiến OCR
+        # thất bại, đồng thời giữ đúng ảnh crop mà người dùng vừa nhìn thấy.
+        plate_hint = normalize_plate(request.form.get("plate_hint") or "")
+        preview_crop_b64 = request.form.get("preview_crop_jpeg_b64") or ""
+        preview_conf = float(request.form.get("preview_confidence") or 0)
+        preview_valid = is_valid_vn_plate(plate_hint)
+
+        if preview_valid and (not ocr.get("valid") or normalize_plate(ocr.get("plate") or "") == plate_hint):
+            ocr["plate"] = plate_hint
+            ocr["valid"] = True
+            ocr["confidence"] = max(float(ocr.get("confidence") or 0), preview_conf)
+            ocr["message"] = ocr.get("message") or "Biển số đã ổn định qua camera."
+            if preview_crop_b64:
+                ocr["crop_jpeg_b64"] = preview_crop_b64
+
+        plate = normalize_plate(ocr.get("plate") or plate_hint)
+        if not plate or not ocr.get("valid"):
+            return jsonify({
+                "status": "error",
+                "event": "ignored",
+                "message": ocr.get("message") or "Chưa nhận diện được biển số hợp lệ.",
+                "plate": plate,
+                "confidence": ocr.get("confidence", 0),
+                "engine": ocr.get("engine", "none"),
+                "ocr": ocr,
+            }), 422
+
+        vehicle_info = infer_vehicle_type(source=image_bytes, plate=plate)
+        vehicle = canonicalize_vehicle_type(vehicle_info.get("vehicle_type")) or "Motorbike"
+
+        if mode == "entry":
+            existing = ticket_store.find_open_by_plate(plate)
+            if existing:
+                return jsonify({
+                    "status": "success",
+                    "event": "duplicate",
+                    "message": f"Xe {plate} đang có vé mở.",
+                    "plate": plate,
+                    "ticket": existing,
+                    "ocr": ocr,
+                    "vehicle": vehicle_info,
+                })
+
+            entry_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            prediction = run_prediction({
+                "student_id": "AUTO_GATE",
+                "entry_time": entry_time,
+                "vehicle": vehicle,
+                "usual_zone": "Zone_A",
+                "rolling_avg": 260,
+                "hist_overnight": 0,
+            })
+            image_name, plate_image_name = _save_ticket_images(image_bytes, ocr, "entry")
+            ticket = ticket_store.open_ticket({
+                "student_id": "AUTO_GATE",
+                "plate": plate,
+                "vehicle_type": vehicle,
+                "entry_time": entry_time,
+                "predicted_behavior": prediction.get("behavior"),
+                "duration_minutes": prediction.get("duration_minutes"),
+                "recommended_zone": prediction.get("recommended_zone"),
+                "estimated_exit": prediction.get("estimated_exit"),
+                "entry_image_path": image_name,
+                "plate_image_path": plate_image_name,
+                "extra": {
+                    "source": "automatic_camera",
+                    "ocr": ocr,
+                    "valid_plate": True,
+                },
+            })
+            return jsonify({
+                "status": "success",
+                "event": "created",
+                "message": f"Đã tự động tạo vé cho xe {plate}.",
+                "plate": plate,
+                "ticket": ticket,
+                "prediction": prediction,
+                "ocr": ocr,
+                "vehicle": vehicle_info,
+            })
+
+        # mode == exit
+        open_ticket = ticket_store.find_open_by_plate(plate)
+        if open_ticket is None:
+            return jsonify({
+                "status": "success",
+                "event": "not_found",
+                "message": f"Không tìm thấy vé đang gửi cho biển {plate}.",
+                "plate": plate,
+                "ocr": ocr,
+                "vehicle": vehicle_info,
+            })
+
+        exit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        exit_vehicle = vehicle
+        penalty = compute_penalty(
+            predicted_minutes=int(open_ticket.get("duration_minutes") or 0),
+            entry_time=open_ticket.get("entry_time"),
+            exit_time=exit_time,
+        )
+        plate_ok = plates_match(open_ticket.get("plate"), plate)
+        vehicle_ok = vehicle_types_match(open_ticket.get("vehicle_type"), exit_vehicle)
+        alerts = []
+        if not plate_ok:
+            alerts.append("Biển số lúc ra không khớp lúc vào.")
+        if not vehicle_ok:
+            alerts.append("Loại xe lúc ra không khớp lúc vào.")
+        if penalty["is_overtime"]:
+            alerts.append(f"Gửi quá giờ {penalty['overtime_minutes']} phút.")
+
+        exit_image_name, exit_plate_image_name = _save_ticket_images(image_bytes, ocr, "exit")
+        status = "closed" if plate_ok and vehicle_ok else "alert"
+        closed = ticket_store.close_ticket(open_ticket["id"], {
+            "exit_time": exit_time,
+            "exit_plate": plate,
+            "exit_vehicle_type": exit_vehicle,
+            "exit_image_path": exit_image_name,
+            "exit_plate_image_path": exit_plate_image_name,
+            "plate_match": plate_ok,
+            "vehicle_match": vehicle_ok,
+            "overtime_minutes": penalty["overtime_minutes"],
+            "penalty_vnd": penalty["penalty_vnd"],
+            "status": status,
+            "alert_message": " ".join(alerts),
+        })
+        return jsonify({
+            "status": "success",
+            "event": "closed" if status == "closed" else "alert",
+            "message": f"Đã tự động cập nhật vé {closed.get('ticket_code')} thành đã trả xe." if status == "closed" else "Vé được đóng nhưng có cảnh báo.",
+            "plate": plate,
+            "ticket": closed,
+            "penalty": penalty,
+            "plate_match": plate_ok,
+            "vehicle_match": vehicle_ok,
+            "alerts": alerts,
+            "ocr": ocr,
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
