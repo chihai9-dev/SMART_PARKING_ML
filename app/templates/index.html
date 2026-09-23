@@ -17,6 +17,26 @@
         .highlight { color: #f1c40f; font-weight: bold; }
         .btn-checkin { background-color: #27ae60; border: none; padding: 12px; }
         .btn-checkout { background-color: #c0392b; border: none; padding: 12px; }
+        .camera-card video {
+            width: 100%;
+            min-height: 260px;
+            max-height: 430px;
+            object-fit: cover;
+            background: #101820;
+            border-radius: 12px;
+        }
+        .camera-card canvas { display: none; }
+        .camera-badge {
+            font-size: 0.9rem;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eef4f8;
+        }
+        .scan-result-img {
+            max-height: 220px;
+            object-fit: contain;
+            background: #f7f7f7;
+        }
     </style>
 </head>
 <body>
@@ -27,8 +47,53 @@
         <a href="/history">Lịch sử</a>
     </nav>
     <div class="container mt-4 mb-5">
-        <h2 class="text-center mb-4 text-primary fw-bold">TỔNG ĐÀI SMART PARKING AI</h2>
-        <p class="text-center text-muted">Dự đoán nhóm thời gian gửi xe · Đề xuất khu · Phạt quá giờ · Đối chiếu biển số / loại xe</p>
+        <h2 class="text-center mb-2 text-primary fw-bold">TỔNG ĐÀI SMART PARKING AI</h2>
+        <p class="text-center text-muted mb-4">Camera trình duyệt → OCR biển số → Check-in / Check-out → Database</p>
+
+        <div class="card p-4 mb-4 camera-card">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <h4 class="mb-1">Camera bãi xe</h4>
+                    <div class="text-muted small">Camera chạy trực tiếp trên trình duyệt. OCR chỉ chạy khi bạn bấm nút chụp nên không làm video bị lag.</div>
+                </div>
+                <span class="camera-badge" id="cameraStatus">Camera chưa bật</span>
+            </div>
+            <div class="row g-3 align-items-start">
+                <div class="col-lg-8">
+                    <video id="cameraVideo" autoplay playsinline muted></video>
+                    <canvas id="captureCanvas"></canvas>
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button class="btn btn-primary" id="startCameraBtn" type="button">Bật camera</button>
+                        <button class="btn btn-outline-secondary" id="stopCameraBtn" type="button" disabled>Tắt camera</button>
+                    </div>
+                    <div class="form-text mt-2" id="cameraHelp">
+                        Khi trình duyệt hỏi quyền camera, chọn <strong>Cho phép</strong>. Hãy dùng Chrome/Edge và mở hệ thống qua http://127.0.0.1:5000 hoặc http://localhost:5000.
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="border rounded p-3 bg-light h-100">
+                        <div class="fw-bold mb-2">Kết quả lần quét</div>
+                        <div class="mb-2">Biển số: <strong id="cameraPlate">—</strong></div>
+                        <div class="mb-2">Hợp lệ: <span id="cameraValid">—</span></div>
+                        <div class="mb-2">OCR: <span id="cameraEngine">—</span></div>
+                        <div class="mb-3">Độ tin cậy: <span id="cameraConfidence">—</span></div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" id="captureEntryBtn" type="button" disabled>Chụp & nhận diện xe VÀO</button>
+                            <button class="btn btn-danger" id="captureExitBtn" type="button" disabled>Chụp & nhận diện xe RA</button>
+                        </div>
+                        <div class="small text-muted mt-3" id="cameraMessage">Chưa có lần quét nào.</div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <img id="cameraAnnotated" class="img-fluid rounded border scan-result-img" alt="Ảnh camera đã khoanh vùng" style="display:none;">
+                            </div>
+                            <div class="col-6">
+                                <img id="cameraCrop" class="img-fluid rounded border scan-result-img" alt="Ảnh biển số cắt ra" style="display:none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="row justify-content-center g-4">
             <div class="col-lg-6">
@@ -44,12 +109,12 @@
                             <input type="datetime-local" class="form-control" id="entry_time" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Ảnh có biển số (tự đọc và ghi biển)</label>
+                            <label class="form-label fw-bold">Ảnh có biển số (tùy chọn)</label>
                             <input type="file" class="form-control" id="entry_image" accept="image/*">
-                            <div class="form-text" id="entry_ocr_status"></div>
+                            <div class="form-text" id="entry_ocr_status">Bạn có thể dùng camera ở phía trên để tự điền biển số.</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Biển số (OCR hoặc nhập tay)</label>
+                            <label class="form-label fw-bold">Biển số</label>
                             <input type="text" class="form-control" id="entry_plate" placeholder="59B1-123.45" required>
                         </div>
                         <div class="row">
@@ -97,7 +162,7 @@
                     <h4 class="mb-3 text-secondary border-bottom pb-2">Xe ra bãi</h4>
                     <form id="checkoutForm">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Ảnh biển số lúc ra</label>
+                            <label class="form-label fw-bold">Ảnh biển số lúc ra (tùy chọn)</label>
                             <input type="file" class="form-control" id="exit_image" accept="image/*">
                         </div>
                         <div class="mb-3">
@@ -125,6 +190,133 @@
 
     <script>
         document.getElementById('entry_time').value = new Date().toISOString().slice(0, 16);
+
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('captureCanvas');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const stopCameraBtn = document.getElementById('stopCameraBtn');
+        const captureEntryBtn = document.getElementById('captureEntryBtn');
+        const captureExitBtn = document.getElementById('captureExitBtn');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const cameraMessage = document.getElementById('cameraMessage');
+        let cameraStream = null;
+
+        function setCameraButtons(running) {
+            startCameraBtn.disabled = running;
+            stopCameraBtn.disabled = !running;
+            captureEntryBtn.disabled = !running;
+            captureExitBtn.disabled = !running;
+        }
+
+        async function startCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                cameraStatus.innerText = 'Trình duyệt không hỗ trợ camera';
+                cameraMessage.innerText = 'Hãy dùng Chrome/Edge và mở bằng localhost hoặc 127.0.0.1.';
+                return;
+            }
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                video.srcObject = cameraStream;
+                cameraStatus.innerText = 'Camera đang bật';
+                cameraStatus.className = 'camera-badge text-success';
+                cameraMessage.innerText = 'Đưa biển số vào khung hình, sau đó bấm nút VÀO hoặc RA.';
+                setCameraButtons(true);
+            } catch (err) {
+                cameraStatus.innerText = 'Không mở được camera';
+                cameraStatus.className = 'camera-badge text-danger';
+                cameraMessage.innerText = 'Hãy kiểm tra quyền Camera của trình duyệt và thử lại.';
+                setCameraButtons(false);
+            }
+        }
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            video.srcObject = null;
+            cameraStatus.innerText = 'Camera đã tắt';
+            cameraStatus.className = 'camera-badge';
+            setCameraButtons(false);
+        }
+
+        async function captureAndRecognize(target) {
+            if (!cameraStream) return;
+            if (!video.videoWidth || !video.videoHeight) {
+                cameraMessage.innerText = 'Camera chưa sẵn sàng. Chờ 1–2 giây rồi thử lại.';
+                return;
+            }
+
+            cameraMessage.innerText = 'Đang chụp ảnh và nhận diện biển số...';
+            captureEntryBtn.disabled = true;
+            captureExitBtn.disabled = true;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+            if (!blob) {
+                cameraMessage.innerText = 'Không tạo được ảnh từ camera.';
+                setCameraButtons(true);
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('image', blob, `camera_${Date.now()}.jpg`);
+
+            try {
+                const res = await fetch('/api/scan-plate', { method: 'POST', body: fd });
+                const data = await res.json();
+
+                document.getElementById('cameraPlate').innerText = data.plate || 'Không đọc được';
+                document.getElementById('cameraValid').innerText = data.valid ? 'Có' : 'Không';
+                document.getElementById('cameraEngine').innerText = data.engine || 'none';
+                document.getElementById('cameraConfidence').innerText = Number(data.confidence || 0).toFixed(2);
+
+                if (data.annotated_jpeg_b64) {
+                    const img = document.getElementById('cameraAnnotated');
+                    img.src = 'data:image/jpeg;base64,' + data.annotated_jpeg_b64;
+                    img.style.display = 'block';
+                }
+                if (data.crop_jpeg_b64) {
+                    const img = document.getElementById('cameraCrop');
+                    img.src = 'data:image/jpeg;base64,' + data.crop_jpeg_b64;
+                    img.style.display = 'block';
+                }
+
+                if (data.status === 'success' && data.plate) {
+                    if (target === 'entry') {
+                        document.getElementById('entry_plate').value = data.plate;
+                        if (data.vehicle_type) document.getElementById('vehicle').value = data.vehicle_type;
+                        document.getElementById('entry_ocr_status').innerText = 'Camera đã nhận diện: ' + data.plate;
+                    } else {
+                        document.getElementById('exit_plate').value = data.plate;
+                        if (data.vehicle_type) document.getElementById('exit_vehicle').value = data.vehicle_type;
+                    }
+                    cameraMessage.innerText = `Đã nhận diện ${data.plate} và lưu ảnh/quét vào hệ thống.`;
+                } else {
+                    cameraMessage.innerText = data.message || 'Không đọc được biển số. Hãy chỉnh vị trí/ánh sáng rồi chụp lại.';
+                }
+            } catch (err) {
+                cameraMessage.innerText = 'Không gọi được máy chủ Flask.';
+            } finally {
+                setCameraButtons(true);
+            }
+        }
+
+        startCameraBtn.addEventListener('click', startCamera);
+        stopCameraBtn.addEventListener('click', stopCamera);
+        captureEntryBtn.addEventListener('click', () => captureAndRecognize('entry'));
+        captureExitBtn.addEventListener('click', () => captureAndRecognize('exit'));
+        window.addEventListener('beforeunload', stopCamera);
 
         document.getElementById('entry_image').addEventListener('change', async () => {
             const file = document.getElementById('entry_image').files[0];
@@ -177,9 +369,7 @@
                     document.getElementById('res_zone').innerText = pred.recommended_zone;
                     document.getElementById('resultCard').style.display = 'block';
                     document.getElementById('lookup_plate').value = data.ticket.plate;
-                    if (pred.model_warning) {
-                        alert(pred.model_warning);
-                    }
+                    if (pred.model_warning) alert(pred.model_warning);
                 } else {
                     alert('Lỗi: ' + data.message);
                 }
