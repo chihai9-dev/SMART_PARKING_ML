@@ -3,3 +3,23 @@ models/regression/best_regression_model.pkl
 *.pkl
 models/regression/*.pkl
 models/classification/*.pkl
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Python virtual environments and secrets
+venv/
+.venv/
+env/
+.env
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# .NET build files
+Backend/**/bin/
+Backend/**/obj/
+Backend/.vs/

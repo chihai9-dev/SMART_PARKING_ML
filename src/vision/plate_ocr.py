@@ -153,21 +153,56 @@ class PlateRecognizer:
             return None
 
     def _ocr_image(self, image_bgr: np.ndarray) -> tuple[list[tuple[str, float]], str]:
-        prepared = preprocess_for_ocr(image_bgr)
-        rgb = prepared[:, :, ::-1]
+        """OCR nhiều biến thể ảnh để tăng khả năng đọc biển số webcam."""
+        image_bgr = resize_max(image_bgr, 1600)
+        variants: list[np.ndarray] = [image_bgr]
 
-        rapid = self._rapidocr()
-        if rapid is not None:
+        try:
+            import cv2
+            gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+            gray = cv2.resize(
+                gray, None, fx=2.0, fy=2.0,
+                interpolation=cv2.INTER_CUBIC,
+            )
+            clahe = cv2.createCLAHE(
+                clipLimit=2.5, tileGridSize=(8, 8)
+            ).apply(gray)
+            denoise = cv2.bilateralFilter(
+                clahe, 5, 40, 40
+            )
+            _, otsu = cv2.threshold(
+                denoise, 0, 255,
+                cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+            )
+            adaptive = cv2.adaptiveThreshold(
+                denoise, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY, 31, 7,
+            )
+            variants.extend([
+                cv2.cvtColor(denoise, cv2.COLOR_GRAY2BGR),
+                cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR),
+                cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR),
+            ])
+        except Exception:
+            pass
+
+        def run_rapid(image: np.ndarray) -> list[tuple[str, float]]:
+            rapid = self._rapidocr()
+            if rapid is None:
+                return []
+
             try:
-                output = rapid(rgb)
+                output = rapid(image[:, :, ::-1])
                 items: list[tuple[str, float]] = []
-                # RapidOCR versions return either an object with txts/scores
-                # or a tuple/list containing [box, text, score] rows.
+
                 if hasattr(output, "txts") and output.txts:
                     scores = list(getattr(output, "scores", []) or [])
                     for i, txt in enumerate(output.txts):
-                        score = float(scores[i]) if i < len(scores) else 0.0
-                        items.append((str(txt), score))
+                        text = str(txt).strip()
+                        if text:
+                            score = float(scores[i]) if i < len(scores) else 0.0
+                            items.append((text, score))
                 else:
                     rows = output[0] if isinstance(output, tuple) else output
                     if rows:
@@ -175,51 +210,88 @@ class PlateRecognizer:
                             if row is None:
                                 continue
                             if isinstance(row, dict):
-                                items.append((str(row.get("txt") or row.get("text") or ""), float(row.get("score") or 0)))
+                                text = str(
+                                    row.get("txt")
+                                    or row.get("text")
+                                    or ""
+                                ).strip()
+                                score = float(row.get("score") or 0)
+                                if text:
+                                    items.append((text, score))
                             elif len(row) >= 3:
-                                items.append((str(row[1]), float(row[2])))
-                if items:
-                    return items, "rapidocr"
+                                text = str(row[1]).strip()
+                                if text:
+                                    items.append(
+                                        (text, float(row[2]))
+                                    )
+                return items
             except Exception as exc:
                 print(f"RapidOCR frame error: {exc}")
+                return []
+
+        # Ảnh gốc được thử trước; grayscale quá mạnh đôi khi làm
+        # detector của RapidOCR mất chữ nhỏ trên webcam.
+        for variant in variants:
+            items = run_rapid(variant)
+            if items:
+                return items, "rapidocr"
 
         reader = self._easyocr()
         if reader is not None:
-            try:
-                results = reader.readtext(rgb)
-                items = [(str(text), float(conf)) for _, text, conf in results]
-                if items:
-                    return items, "easyocr"
-            except Exception as exc:
-                print(f"EasyOCR frame error: {exc}")
+            for variant in variants[:2]:
+                try:
+                    results = reader.readtext(
+                        variant[:, :, ::-1]
+                    )
+                    items = [
+                        (str(text), float(conf))
+                        for _, text, conf in results
+                        if str(text).strip()
+                    ]
+                    if items:
+                        return items, "easyocr"
+                except Exception as exc:
+                    print(f"EasyOCR frame error: {exc}")
 
-        # Tesseract fallback: thử vài kiểu tiền xử lý/PSM để tăng khả năng đọc
-        # biển bị nhỏ, lệch sáng hoặc có hai dòng.
         best_items: list[tuple[str, float]] = []
-        variants: list[np.ndarray] = [prepared]
-        try:
-            import cv2
-            gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-            gray = cv2.resize(gray, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
-            clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8)).apply(gray)
-            _, otsu = cv2.threshold(clahe, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            adaptive = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 7)
-            variants.extend([cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR), cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR)])
-        except Exception:
-            pass
 
         for variant in variants:
-            for psm in (7, 6, 11):
-                result = _try_tesseract(variant, psm=psm)
+            for psm in (7, 6, 11, 13):
+                result = _try_tesseract(
+                    variant,
+                    psm=psm,
+                )
                 if result is None:
                     continue
+
                 plate, conf, raw = result
                 if not raw:
                     continue
-                score = (2.0 if is_valid_vn_plate(plate) else 0.0) + conf + min(len(plate), 10) / 100.0
-                current_score = (2.0 if any(is_valid_vn_plate(normalize_plate(t)) for t, _ in best_items) else 0.0) + (best_items[0][1] if best_items else 0.0)
+
+                score = (
+                    (2.0 if is_valid_vn_plate(plate) else 0.0)
+                    + conf
+                    + min(len(plate), 10) / 100.0
+                )
+                current_score = (
+                    (
+                        2.0
+                        if any(
+                            is_valid_vn_plate(normalize_plate(t))
+                            for t, _ in best_items
+                        )
+                        else 0.0
+                    )
+                    + (
+                        best_items[0][1]
+                        if best_items
+                        else 0.0
+                    )
+                )
+
                 if not best_items or score > current_score:
                     best_items = [(raw, conf)]
+
         return best_items, "tesseract" if best_items else "none"
 
     def recognize(self, source: ImageInput) -> dict[str, Any]:

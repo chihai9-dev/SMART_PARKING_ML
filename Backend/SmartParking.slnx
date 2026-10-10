@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Smartparking.Api/Smartparking.Api.csproj" />
+    <Project Path="src/SmartParking.Application/SmartParking.Application.csproj" />
+    <Project Path="src/SmartParking.Domain/SmartParking.Domain.csproj" />
+    <Project Path="src/SmartParking.Infrastructure/SmartParking.Infrastructure.csproj" />
+  </Folder>
+</Solution>
