@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,82 @@ except ImportError:  # pragma: no cover
     cv2 = None
 
 from src.vision.preprocess import resize_max
+
+_yolo_session = None
+_yolo_loaded = False
+
+
+def _get_yolo_session():
+    """Tải ONNX session cho mô hình YOLOv8 phát hiện biển số."""
+    global _yolo_session, _yolo_loaded
+    if _yolo_loaded:
+        return _yolo_session
+    _yolo_loaded = True
+    try:
+        import onnxruntime as ort
+        model_path = Path(__file__).resolve().parents[2] / "models" / "vision" / "best.onnx"
+        if model_path.exists():
+            _yolo_session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+    except Exception:
+        _yolo_session = None
+    return _yolo_session
+
+
+def _detect_yolo_plates(image: np.ndarray, conf_thresh: float = 0.35) -> list[dict[str, Any]]:
+    """Dùng mô hình YOLO ONNX để định vị biển số nhanh và chính xác."""
+    session = _get_yolo_session()
+    if session is None or cv2 is None:
+        return []
+    try:
+        h, w = image.shape[:2]
+        scale = 640.0 / max(h, w)
+        nh, nw = int(h * scale), int(w * scale)
+        resized = cv2.resize(image, (nw, nh))
+        canvas = np.zeros((640, 640, 3), dtype=np.uint8)
+        canvas[:nh, :nw] = resized
+
+        blob = cv2.dnn.blobFromImage(canvas, 1.0 / 255.0, (640, 640), swapRB=True)
+        outputs = session.run(None, {"images": blob})[0]
+        preds = outputs[0].T  # shape [8400, 5]
+
+        boxes, scores = [], []
+        for row in preds:
+            conf = float(row[4])
+            if conf >= conf_thresh:
+                xc, yc, bw, bh = row[:4]
+                x0 = max(0, int((xc - bw / 2.0) / scale))
+                y0 = max(0, int((yc - bh / 2.0) / scale))
+                bw = min(w - x0, int(bw / scale))
+                bh = min(h - y0, int(bh / scale))
+                if bw > 15 and bh > 15:
+                    boxes.append([x0, y0, bw, bh])
+                    scores.append(conf)
+
+        if not boxes:
+            return []
+
+        indices = cv2.dnn.NMSBoxes(boxes, scores, conf_thresh, 0.45)
+        candidates = []
+        for i in indices:
+            idx = int(i)
+            bx, by, bw, bh = boxes[idx]
+            # Mở rộng biên nhẹ (padding 5%) để tránh cắt sát mép chữ biển số
+            pad_x = int(bw * 0.05)
+            pad_y = int(bh * 0.05)
+            x0 = max(0, bx - pad_x)
+            y0 = max(0, by - pad_y)
+            x1 = min(w, bx + bw + pad_x)
+            y1 = min(h, by + bh + pad_y)
+            crop = image[y0:y1, x0:x1]
+            if crop.size > 0:
+                candidates.append({
+                    "bbox": [x0, y0, x1 - x0, y1 - y0],
+                    "crop": crop,
+                    "score": float(scores[idx]) + 2.0,  # Ưu tiên cao hơn thuật toán contour
+                })
+        return candidates
+    except Exception:
+        return []
 
 
 def _score_box(w: int, h: int, img_area: int) -> float:
@@ -43,6 +120,16 @@ def find_plate_regions(image: np.ndarray, max_candidates: int = 5) -> list[dict[
     if cv2 is None:
         h, w = image.shape[:2]
         return [{"bbox": [0, 0, w, h], "crop": image, "score": 0.1}]
+
+    # 0) Ưu tiên sử dụng mô hình YOLO ONNX
+    yolo_candidates = _detect_yolo_plates(image)
+    if yolo_candidates:
+        h, w = image.shape[:2]
+        full = {"bbox": [0, 0, w, h], "crop": image, "score": 0.02}
+        yolo_candidates.sort(key=lambda c: c["score"], reverse=True)
+        results = yolo_candidates[:max(1, max_candidates - 1)]
+        results.append(full)
+        return results
 
     image = resize_max(image, 1600)
     h, w = image.shape[:2]
