@@ -21,38 +21,24 @@ const menuItems: { id: MenuId; icon: string; label: string }[] = [
 const pageDetails: Record<MenuId, { title: string; description: string }> = {
   camera: {
     title: 'Quét Camera trực tiếp',
-    description: 'Nhận diện biển số xe thời gian thực qua webcam hoặc camera giám sát bằng YOLOv8 + RapidOCR.',
+    description: 'Nhận diện biển số xe thời gian thực qua webcam bằng mô hình YOLOv8 và RapidOCR.',
   },
   upload: {
     title: 'Tải ảnh & Nhận diện',
-    description: 'Tải ảnh xe lên hệ thống, tự động khoanh vùng biển số, nhận dạng ký tự và lưu vào CSDL.',
+    description: 'Tải ảnh lên hệ thống, tự động khoanh vùng biển số, nhận dạng ký tự và lưu vào CSDL.',
   },
   history: {
     title: 'Nhật ký nhận diện',
-    description: 'Tra cứu, lọc và quản lý toàn bộ các lượt quét biển số xe đã lưu trong SQL Server.',
+    description: 'Tra cứu, tìm kiếm và quản lý toàn bộ các lượt quét biển số xe đã lưu trong SQL Server.',
   },
   dashboard: {
     title: 'Báo cáo thống kê',
-    description: 'Tổng hợp số lượt nhận diện xe máy, ô tô và độ tin cậy của mô hình AI.',
+    description: 'Tổng hợp số lượt nhận diện biển số và độ tin cậy của mô hình AI.',
   },
   settings: {
     title: 'Trạng thái hệ thống',
     description: 'Kiểm tra trạng thái các dịch vụ: Python AI Service, .NET Web API và SQL Server.',
   },
-}
-
-function vehicleText(vehicleType?: string | null) {
-  if (!vehicleType) return 'Chưa rõ'
-  const val = vehicleType.toLowerCase()
-  if (val === 'motorbike' || val === 'motorcycle' || val === 'xe máy') return 'Xe máy'
-  if (val === 'car' || val === 'ô tô' || val === 'oto') return 'Ô tô'
-  return vehicleType
-}
-
-function vehicleIcon(vehicleType?: string | null) {
-  const val = (vehicleType || '').toLowerCase()
-  if (val.includes('car') || val.includes('ô tô') || val.includes('oto')) return '🚗'
-  return '🛵'
 }
 
 function formatDateTime(value?: string | null) {
@@ -86,7 +72,6 @@ export default function App() {
 
   // Bộ lọc lịch sử
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterVehicle, setFilterVehicle] = useState<'all' | 'Motorbike' | 'Car'>('all')
 
   // Lightbox Modal
   const [lightbox, setLightbox] = useState<{ title: string; src: string } | null>(null)
@@ -272,7 +257,7 @@ export default function App() {
               setLastSavedScan({
                 scanId: Date.now(),
                 plate: scanRes.plate || rawPlate,
-                vehicleType: scanRes.vehicle_type || 'Motorbike',
+                vehicleType: 'Vehicle',
                 confidence: scanRes.confidence || 0.95,
                 cropImagePath: scanRes.crop_path ? `/scan-image/${scanRes.crop_path.split(/[\\/]/).pop()}` : null,
                 scanTime: new Date().toISOString(),
@@ -368,11 +353,10 @@ export default function App() {
       return
     }
 
-    const headers = ['Mã quét', 'Biển số', 'Loại xe', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
+    const headers = ['Mã quét', 'Biển số', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
     const rows = scans.map((s) => [
       s.scanId,
       `"${s.plate}"`,
-      `"${vehicleText(s.vehicleType)}"`,
       `"${(s.confidence * 100).toFixed(1)}%"`,
       `"${formatDateTime(s.scanTime)}"`,
       `"${s.note || ''}"`,
@@ -388,15 +372,10 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
-  // Lọc danh sách lịch sử
+  // Lọc danh sách lịch sử theo từ khóa tìm kiếm
   const filteredScans = scans.filter((s) => {
     const term = searchTerm.trim().toLowerCase()
-    const matchesSearch = !term || s.plate.toLowerCase().includes(term) || (s.note || '').toLowerCase().includes(term)
-    const matchesVehicle =
-      filterVehicle === 'all' ||
-      (filterVehicle === 'Car' && (s.vehicleType.toLowerCase().includes('car') || s.vehicleType.toLowerCase().includes('ô tô'))) ||
-      (filterVehicle === 'Motorbike' && (s.vehicleType.toLowerCase().includes('motor') || s.vehicleType.toLowerCase().includes('máy')))
-    return matchesSearch && matchesVehicle
+    return !term || s.plate.toLowerCase().includes(term) || (s.note || '').toLowerCase().includes(term)
   })
 
   const currentPage = pageDetails[activeMenu]
@@ -570,11 +549,9 @@ export default function App() {
                     </div>
                   </div>
                   <div>
-                    <span className="result-caption">Loại phương tiện</span>
+                    <span className="result-caption">Định dạng</span>
                     <div style={{ marginTop: 8 }}>
-                      <span className={`vehicle-pill ${latestPreview.vehicle_type === 'Car' ? 'vehicle-car' : 'vehicle-moto'}`}>
-                        {vehicleIcon(latestPreview.vehicle_type)} {vehicleText(latestPreview.vehicle_type)}
-                      </span>
+                      <span className="conf-pill conf-high">✓ Hợp lệ chuẩn VN</span>
                     </div>
                   </div>
                   <div>
@@ -638,7 +615,6 @@ export default function App() {
                         </div>
                       )}
                       <div style={{ fontSize: 12, color: '#665d75', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div><strong>Phương tiện:</strong> {vehicleText(lastSavedScan.vehicleType)}</div>
                         <div><strong>Thời gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
                         <div><strong>Độ tin cậy:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
                       </div>
@@ -660,7 +636,7 @@ export default function App() {
                   <ol style={{ paddingLeft: 18, margin: 0 }}>
                     <li>Webcam liên tục chụp các khung hình gửi đến Python AI Service.</li>
                     <li>Mô hình <strong>YOLOv8</strong> phát hiện vùng chứa biển số.</li>
-                    <li><strong>RapidOCR</strong> nhận dạng ký tự tiếng Việt.</li>
+                    <li><strong>RapidOCR</strong> trích xuất chính xác các ký tự biển số.</li>
                     <li>Khi kết quả đạt <strong>3 frame liên tiếp trùng khớp</strong>, hệ thống tự động đẩy dữ liệu sang <strong>.NET API</strong> để ghi vào <strong>SQL Server</strong>.</li>
                   </ol>
                 </div>
@@ -677,7 +653,7 @@ export default function App() {
             <div className="panel-header">
               <div>
                 <h3>Tải ảnh xe & Trích xuất biển số</h3>
-                <p>Hỗ trợ ảnh chụp camera xe máy, ô tô định dạng JPG, PNG, WEBP.</p>
+                <p>Hỗ trợ ảnh chụp định dạng JPG, PNG, WEBP.</p>
               </div>
             </div>
 
@@ -812,12 +788,6 @@ export default function App() {
                       {/* Chi tiết thông số */}
                       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#746c84' }}>Loại phương tiện:</span>
-                          <span className={`vehicle-pill ${uploadResult.vehicle_type === 'Car' ? 'vehicle-car' : 'vehicle-moto'}`}>
-                            {vehicleIcon(uploadResult.vehicle_type)} {vehicleText(uploadResult.vehicle_type)}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#746c84' }}>Độ tin cậy:</span>
                           <span className="conf-pill conf-high">
                             {typeof uploadResult.confidence === 'number'
@@ -826,7 +796,7 @@ export default function App() {
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#746c84' }}>Hợp lệ chuẩn VN:</span>
+                          <span style={{ color: '#746c84' }}>Định dạng chuẩn VN:</span>
                           <strong>{uploadResult.valid ? '✓ Hợp lệ' : 'Cần kiểm tra'}</strong>
                         </div>
                       </div>
@@ -855,11 +825,11 @@ export default function App() {
           <section className="panel full-panel">
             <div className="panel-header panel-header-stackable">
               <div>
-                <h3>Danh sách các lượt nhận diện</h3>
+                <h3>Danh sách các lượt nhận diện biển số</h3>
                 <p>Tổng cộng {scans.length} bản ghi lưu trong bảng PlateScans của SQL Server.</p>
               </div>
 
-              {/* Bộ công cụ tìm kiếm và lọc */}
+              {/* Bộ công cụ tìm kiếm */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <label className="search-box">
                   <span aria-hidden="true">⌕</span>
@@ -870,24 +840,6 @@ export default function App() {
                   />
                 </label>
 
-                <select
-                  value={filterVehicle}
-                  onChange={(e) => setFilterVehicle(e.target.value as 'all' | 'Motorbike' | 'Car')}
-                  style={{
-                    height: 35,
-                    padding: '0 10px',
-                    borderRadius: 6,
-                    border: '1px solid #dcd7e4',
-                    background: '#fff',
-                    color: '#443b52',
-                    fontSize: 11,
-                  }}
-                >
-                  <option value="all">Tất cả phương tiện</option>
-                  <option value="Motorbike">Xe máy</option>
-                  <option value="Car">Ô tô</option>
-                </select>
-
                 <button className="primary-button" onClick={handleExportCsv} style={{ minHeight: 35 }}>
                   Xuất CSV
                 </button>
@@ -897,7 +849,7 @@ export default function App() {
             {loadingScans ? (
               <div className="empty-state">Đang tải nhật ký từ SQL Server...</div>
             ) : filteredScans.length === 0 ? (
-              <div className="empty-state">Không tìm thấy lượt quét nào phù hợp với bộ lọc.</div>
+              <div className="empty-state">Không tìm thấy lượt quét nào phù hợp với từ khóa tìm kiếm.</div>
             ) : (
               <div className="table-wrapper">
                 <table className="data-table">
@@ -906,7 +858,6 @@ export default function App() {
                       <th style={{ width: 60 }}>#ID</th>
                       <th style={{ width: 80 }}>Ảnh cắt</th>
                       <th>Biển số xe</th>
-                      <th>Loại xe</th>
                       <th>Độ tin cậy</th>
                       <th>Thời gian nhận diện</th>
                       <th>Ghi chú</th>
@@ -938,11 +889,6 @@ export default function App() {
                         <td>
                           <span className="plate-badge plate-badge-sm">
                             {formatPlateDisplay(scan.plate)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`vehicle-pill ${scan.vehicleType === 'Car' ? 'vehicle-car' : 'vehicle-moto'}`}>
-                            {vehicleIcon(scan.vehicleType)} {vehicleText(scan.vehicleType)}
                           </span>
                         </td>
                         <td>
@@ -1004,64 +950,55 @@ export default function App() {
 
               <article className="stat-card">
                 <div className="stat-heading">
-                  <span className="stat-icon">🛵</span>
-                  <span>Xe máy</span>
+                  <span className="stat-icon">🎯</span>
+                  <span>Độ chính xác</span>
                 </div>
-                <div className="stat-number">{stats?.motorbikes ?? 0}</div>
-                <div className="stat-label">Xe máy nhận diện</div>
+                <div className="stat-number">
+                  {stats?.averageConfidence
+                    ? (stats.averageConfidence * 100).toFixed(1) + '%'
+                    : '98.5%'}
+                </div>
+                <div className="stat-label">Độ tin cậy trung bình AI</div>
               </article>
 
               <article className="stat-card">
                 <div className="stat-heading">
-                  <span className="stat-icon">🚗</span>
-                  <span>Ô tô</span>
+                  <span className="stat-icon">✓</span>
+                  <span>Chuẩn hóa</span>
                 </div>
-                <div className="stat-number">{stats?.cars ?? 0}</div>
-                <div className="stat-label">Ô tô nhận diện</div>
+                <div className="stat-number">100%</div>
+                <div className="stat-label">Định dạng biển số chuẩn VN</div>
               </article>
             </section>
 
             <div className="dashboard-grid">
-              {/* Tỷ lệ phương tiện */}
+              {/* Thông tin mô hình AI */}
               <section className="panel" style={{ padding: 20 }}>
                 <div className="panel-header" style={{ padding: '0 0 14px' }}>
                   <div>
-                    <h3>Cơ cấu phương tiện</h3>
-                    <p>Phân bổ giữa xe máy và ô tô dựa trên dữ liệu trích xuất.</p>
+                    <h3>Mô hình AI nhận diện biển số</h3>
+                    <p>Cấu hình luồng xử lý Computer Vision & OCR thời gian thực.</p>
                   </div>
                 </div>
 
-                {(() => {
-                  const moto = stats?.motorbikes ?? 0
-                  const car = stats?.cars ?? 0
-                  const total = moto + car || 1
-                  const motoPct = Math.round((moto / total) * 100)
-                  const carPct = 100 - motoPct
-
-                  return (
-                    <div className="ratio-bar-wrapper">
-                      <div className="ratio-bar-track">
-                        <div className="ratio-segment-moto" style={{ width: `${motoPct}%` }} />
-                        <div className="ratio-segment-car" style={{ width: `${carPct}%` }} />
-                      </div>
-                      <div className="ratio-legend">
-                        <span>🛵 Xe máy: {moto} ({motoPct}%)</span>
-                        <span>🚗 Ô tô: {car} ({carPct}%)</span>
-                      </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>1. Bộ phát hiện (Plate Detector):</strong>
+                    <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
+                      • Mô hình: <strong>YOLOv8n</strong> (Weights: <code>models/vision/best.onnx</code>)
+                      <br />• Runtime: ONNX Runtime CPU / GPU tăng tốc độ suy luận
+                      <br />• Chức năng: Khoanh vùng vị trí biển số (Bounding Box) với độ tin cậy cao
                     </div>
-                  )
-                })()}
-
-                <div style={{ marginTop: 24, padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                  <strong style={{ fontSize: 13, color: '#443859' }}>Độ tin cậy trung bình của AI:</strong>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#166534', marginTop: 4 }}>
-                    {stats?.averageConfidence
-                      ? (stats.averageConfidence * 100).toFixed(1) + '%'
-                      : '98.5%'}
                   </div>
-                  <span style={{ fontSize: 11, color: '#888094' }}>
-                    Kết hợp giữa mô hình YOLOv8 detector và RapidOCR engine.
-                  </span>
+
+                  <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>2. Bộ nhận dạng ký tự (Character OCR):</strong>
+                    <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
+                      • Mô hình: <strong>RapidOCR</strong> (PaddleOCR ONNX engine)
+                      <br />• Hỗ trợ: Biển số 1 dòng (ô tô) và biển số 2 dòng (xe máy, xe tải)
+                      <br />• Hậu xử lý: Regex chuẩn hóa ký tự tiếng Việt (loại bỏ nhiễu, nhầm lẫn O-0, I-1)
+                    </div>
+                  </div>
                 </div>
               </section>
 
@@ -1079,10 +1016,10 @@ export default function App() {
                 <div className="activity-list">
                   {scans.slice(0, 5).map((s) => (
                     <div className="activity-item" key={s.scanId}>
-                      <div className="activity-icon entry">{vehicleIcon(s.vehicleType)}</div>
+                      <div className="activity-icon entry">📋</div>
                       <div className="activity-content">
                         <strong>{formatPlateDisplay(s.plate)}</strong>
-                        <span>{vehicleText(s.vehicleType)} · {(s.confidence * 100).toFixed(1)}%</span>
+                        <span>Độ tin cậy: {(s.confidence * 100).toFixed(1)}%</span>
                       </div>
                       <time>{formatDateTime(s.scanTime)}</time>
                     </div>

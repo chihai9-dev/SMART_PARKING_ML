@@ -1,7 +1,7 @@
 export type PlateScanDto = {
   scanId: number
   plate: string
-  vehicleType: string
+  vehicleType?: string | null
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
@@ -13,8 +13,8 @@ export type PlateScanDto = {
 export type PlateScanStats = {
   totalScans: number
   todayScans: number
-  motorbikes: number
-  cars: number
+  motorbikes?: number
+  cars?: number
   averageConfidence: number
 }
 
@@ -142,7 +142,7 @@ export async function previewPlate(image: Blob): Promise<PlatePreview> {
 export async function createPlateScan(
   scan: {
     plate: string
-    vehicleType: string
+    vehicleType?: string | null
     confidence: number
     imagePath?: string | null
     cropImagePath?: string | null

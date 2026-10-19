@@ -1162,10 +1162,7 @@ def scan_plate():
             image_bytes
         )
 
-        vehicle = infer_vehicle_type(
-            source=image_bytes,
-            plate=ocr.get("plate"),
-        )
+        vehicle_type = "Vehicle"
 
         SCAN_DIR.mkdir(
             parents=True,
@@ -1235,9 +1232,7 @@ def scan_plate():
                 image_path
             ),
             "crop_path": crop_path,
-            "vehicle_type": vehicle.get(
-                "vehicle_type"
-            ),
+            "vehicle_type": vehicle_type,
             "extra": {
                 "bbox": ocr.get(
                     "bbox"
@@ -1264,7 +1259,7 @@ def scan_plate():
                     "/api/PlateScans",
                     payload={
                         "plate": detected_plate,
-                        "vehicleType": vehicle.get("vehicle_type") or "Motorbike",
+                        "vehicleType": vehicle_type,
                         "confidence": float(ocr.get("confidence") or 1.0),
                         "imagePath": f"/scan-image/{image_path.name}",
                         "cropImagePath": f"/scan-image/{Path(crop_path).name}" if crop_path else None,
@@ -1292,12 +1287,7 @@ def scan_plate():
                 "message": ocr.get(
                     "message"
                 ),
-                "vehicle_type": vehicle.get(
-                    "vehicle_type"
-                ),
-                "vehicle_source": vehicle.get(
-                    "source"
-                ),
+                "vehicle_type": vehicle_type,
                 "raw_candidates": ocr.get(
                     "raw_candidates",
                     [],
@@ -1427,11 +1417,6 @@ def preview_plate():
             or ""
         )
 
-        vehicle = infer_vehicle_type(
-            source=image_bytes,
-            plate=plate,
-        )
-
         return jsonify(
             {
                 "status": "success",
@@ -1451,9 +1436,7 @@ def preview_plate():
                     "message",
                     "",
                 ),
-                "vehicle_type": vehicle.get(
-                    "vehicle_type"
-                ),
+                "vehicle_type": "",
                 "bbox": ocr.get(
                     "bbox"
                 ),
