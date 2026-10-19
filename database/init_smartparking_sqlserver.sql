@@ -47,3 +47,30 @@ BEGIN
     PRINT N'Bang Tickets da ton tai.';
 END
 GO
+
+-- 4. Tao bang PlateScans (Luu lich su nhan dien bien so xe - ALPR)
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PlateScans')
+BEGIN
+    CREATE TABLE PlateScans (
+        ScanId BIGINT IDENTITY(1,1) PRIMARY KEY,
+        Plate NVARCHAR(50) NOT NULL,
+        VehicleType NVARCHAR(50) NOT NULL DEFAULT 'Motorbike',
+        Confidence FLOAT NOT NULL DEFAULT 1.0,
+        ImagePath NVARCHAR(500) NULL,
+        CropImagePath NVARCHAR(500) NULL,
+        ScanTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+        Note NVARCHAR(200) NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
+    );
+
+    CREATE INDEX IX_PlateScans_Plate ON PlateScans(Plate);
+    CREATE INDEX IX_PlateScans_ScanTime ON PlateScans(ScanTime);
+
+    PRINT N'Da tao bang PlateScans thanh cong!';
+END
+ELSE
+BEGIN
+    PRINT N'Bang PlateScans da ton tai.';
+END
+GO
+

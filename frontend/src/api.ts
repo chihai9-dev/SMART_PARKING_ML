@@ -1,16 +1,21 @@
-export type TicketDto = {
-  ticketId: number
-  ticketCode: string
+export type PlateScanDto = {
+  scanId: number
   plate: string
   vehicleType: string
-  entryTime: string
-  entryImagePath?: string | null
-  plateImagePath?: string | null
-  exitTime?: string | null
-  exitImagePath?: string | null
-  status: number | string
-  penaltyAmount: number
+  confidence: number
+  imagePath?: string | null
+  cropImagePath?: string | null
+  scanTime: string
+  note?: string | null
   createdAt?: string
+}
+
+export type PlateScanStats = {
+  totalScans: number
+  todayScans: number
+  motorbikes: number
+  cars: number
+  averageConfidence: number
 }
 
 export type PlatePreview = {
@@ -23,36 +28,23 @@ export type PlatePreview = {
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
   vehicle_type?: string
+  bbox?: number[]
   [key: string]: unknown
 }
 
-export type GateTicketResult = {
-  ticket_id?: number | null
-  ticket_code?: string | null
-  plate?: string | null
-  vehicle_type?: string | null
-  entry_time?: string | null
-  exit_time?: string | null
-  status?: number | string
-  status_code?: number
-  penalty_amount?: number
-}
-
-export type GatePredictionResult = {
-  estimated_exit?: string | null
-  recommended_zone?: string | null
-  behavior?: string | null
-  current_demand?: number | null
-  duration_minutes?: number | null
-}
-
-export type GateEventResult = {
-  status?: string
-  event?: string
-  message?: string
+export type ScanResult = {
+  status: string
   plate?: string
-  ticket?: GateTicketResult
-  prediction?: GatePredictionResult
+  valid?: boolean
+  confidence?: number
+  engine?: string
+  message?: string
+  vehicle_type?: string
+  bbox?: number[]
+  crop_jpeg_b64?: string
+  annotated_jpeg_b64?: string
+  image_path?: string
+  crop_path?: string
   [key: string]: unknown
 }
 
@@ -93,14 +85,46 @@ export async function login(username: string, password: string): Promise<LoginRe
   return result
 }
 
-export async function fetchTickets(token: string): Promise<TicketDto[]> {
-  const response = await fetch('/backend-api/Tickets', {
-    headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+export async function fetchPlateScans(token?: string, search?: string): Promise<PlateScanDto[]> {
+  const url = search ? `/backend-api/PlateScans?search=${encodeURIComponent(search)}` : '/backend-api/PlateScans'
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const response = await fetch(url, { headers })
+  const result = await readResponse<unknown>(response)
+  if (!Array.isArray(result)) throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
+  return result as PlateScanDto[]
+}
+
+export async function fetchPlateScanStats(token?: string): Promise<PlateScanStats> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const response = await fetch('/backend-api/PlateScans/stats', { headers })
+  return readResponse<PlateScanStats>(response)
+}
+
+export async function deletePlateScan(id: number, token?: string): Promise<void> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const response = await fetch(`/backend-api/PlateScans/${id}`, {
+    method: 'DELETE',
+    headers,
+  })
+  await readResponse<unknown>(response)
+}
+
+export async function scanPlate(image: Blob): Promise<ScanResult> {
+  const form = new FormData()
+  form.append('image', image, 'plate-upload.jpg')
+
+  const response = await fetch('/python-api/scan-plate', {
+    method: 'POST',
+    body: form,
   })
 
-  const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) throw new Error('Dữ liệu vé từ backend không đúng định dạng.')
-  return result as TicketDto[]
+  return readResponse<ScanResult>(response)
 }
 
 export async function previewPlate(image: Blob): Promise<PlatePreview> {
@@ -115,27 +139,28 @@ export async function previewPlate(image: Blob): Promise<PlatePreview> {
   return readResponse<PlatePreview>(response)
 }
 
-export async function submitGateEvent(
-  mode: 'entry' | 'exit',
-  image: Blob,
-  preview: PlatePreview | null,
-): Promise<GateEventResult> {
-  const form = new FormData()
-  form.append('mode', mode)
-  form.append('image', image, 'camera-frame.jpg')
-
-  if (preview && preview.plate) form.append('plate_hint', preview.plate)
-  if (preview && typeof preview.confidence === 'number') {
-    form.append('preview_confidence', String(preview.confidence))
+export async function createPlateScan(
+  scan: {
+    plate: string
+    vehicleType: string
+    confidence: number
+    imagePath?: string | null
+    cropImagePath?: string | null
+    note?: string | null
+  },
+  token?: string
+): Promise<PlateScanDto> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
   }
-  if (preview && preview.crop_jpeg_b64) {
-    form.append('preview_crop_jpeg_b64', preview.crop_jpeg_b64)
-  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const response = await fetch('/python-api/gate-event', {
+  const response = await fetch('/backend-api/PlateScans', {
     method: 'POST',
-    body: form,
+    headers,
+    body: JSON.stringify(scan),
   })
 
-  return readResponse<GateEventResult>(response)
+  return readResponse<PlateScanDto>(response)
 }

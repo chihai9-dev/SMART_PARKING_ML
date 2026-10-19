@@ -1255,6 +1255,25 @@ def scan_plate():
             record
         )
 
+        # Lưu tự động vào .NET Backend SQL Server
+        try:
+            detected_plate = ocr.get("plate")
+            if detected_plate:
+                _backend_request(
+                    "POST",
+                    "/api/PlateScans",
+                    payload={
+                        "plate": detected_plate,
+                        "vehicleType": vehicle.get("vehicle_type") or "Motorbike",
+                        "confidence": float(ocr.get("confidence") or 1.0),
+                        "imagePath": f"/scan-image/{image_path.name}",
+                        "cropImagePath": f"/scan-image/{Path(crop_path).name}" if crop_path else None,
+                        "note": ocr.get("engine") or "YOLOv8 + RapidOCR",
+                    },
+                )
+        except Exception as be_exc:
+            print(f"[Warning] Khong the day scan sang .NET Backend: {be_exc}")
+
         return jsonify(
             {
                 "status": "success",
@@ -1355,6 +1374,12 @@ def ticket_image(filename):
                 "message": str(exc),
             }
         ), 500
+
+
+@app.route("/scan-image/<path:filename>")
+def get_scan_image(filename):
+    safe_name = os.path.basename(filename)
+    return send_from_directory(SCAN_DIR, safe_name)
 
 
 # ============================================================

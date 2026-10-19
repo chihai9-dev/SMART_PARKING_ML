@@ -80,11 +80,17 @@ builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<
     ITicketRepository,
     TicketRepository>();
+builder.Services.AddScoped<
+    IPlateScanRepository,
+    PlateScanRepository>();
 
 // Service
 builder.Services.AddScoped<
     ITicketService,
     TicketService>();
+builder.Services.AddScoped<
+    IPlateScanService,
+    PlateScanService>();
 
 var app = builder.Build();
 
