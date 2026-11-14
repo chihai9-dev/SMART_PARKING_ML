@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SmartParking.Api.Auth;
@@ -8,6 +9,7 @@ using System.Text;
 namespace SmartParking.Api.Controllers;
 
 [ApiController]
+[Tags(new string[] { "Xác thực" })]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
