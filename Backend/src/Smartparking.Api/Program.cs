@@ -76,18 +76,12 @@ builder.Services.AddAuthorization();
 // Database
 builder.Services.AddSingleton<DbConnectionFactory>();
 
-// Repository
-builder.Services.AddScoped<
-    ITicketRepository,
-    TicketRepository>();
+// Repository: chỉ giữ repository phục vụ lịch sử nhận diện biển số.
 builder.Services.AddScoped<
     IPlateScanRepository,
     PlateScanRepository>();
 
-// Service
-builder.Services.AddScoped<
-    ITicketService,
-    TicketService>();
+// Service: chỉ giữ service phục vụ lịch sử nhận diện biển số.
 builder.Services.AddScoped<
     IPlateScanService,
     PlateScanService>();
