@@ -19,7 +19,7 @@
 Smart Parking là hệ thống quản lý bãi đỗ xe thông minh, kết hợp giao diện web, API backend, xử lý camera/OCR và cơ sở dữ liệu SQL Server. Hệ thống hướng đến quy trình ghi nhận xe vào, nhận diện biển số, tạo vé và cập nhật vé khi xe ra.
 
 Các thành phần chính:
-- **React**: giao diện đăng nhập, dashboard, danh sách vé và màn hình camera.
+- **React**: giao diện dashboard, danh sách vé và màn hình camera; không yêu cầu đăng nhập.
 - **.NET Web API**: xử lý API nghiệp vụ và truy cập dữ liệu.
 - **Python Flask/OCR**: nhận ảnh camera và nhận diện biển số.
 - **SQL Server**: lưu thông tin vé xe.
@@ -34,7 +34,7 @@ Hướng dẫn này dành cho Windows, PowerShell và VS Code. Các lệnh giả
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS | Giao diện web |
 | Backend | .NET 10, ASP.NET Core Web API | Cung cấp API nghiệp vụ |
 | Truy cập dữ liệu | Dapper, Microsoft.Data.SqlClient | Truy vấn SQL Server |
-| Xác thực API | JWT Bearer Authentication | Xác thực người dùng và API |
+| Truy cập API | Không yêu cầu đăng nhập | Swagger và giao diện có thể gọi API trực tiếp |
 | Tài liệu API | Swagger / OpenAPI | Xem và thử API |
 | Camera/OCR | Python, Flask, OpenCV, RapidOCR, ONNX Runtime, pytesseract/Tesseract | Nhận ảnh và nhận diện biển số |
 | Dữ liệu/ML | NumPy, Pandas, scikit-learn, Matplotlib, Seaborn, Joblib, XGBoost, Pillow | Xử lý dữ liệu và thử nghiệm mô hình |
@@ -170,17 +170,11 @@ Mở URL Vite hiển thị trong terminal, thường là:
 - Frontend React: **http://localhost:5173**
 
 
-### Bước 3. Đăng nhập và kiểm tra luồng hoạt động
+### Bước 3. Kiểm tra luồng hoạt động
 
-Tài khoản demo hiện được ghi trong mã nguồn:
-- Username: `admin`
-- Password: `123456`
-
-Thực hiện theo thứ tự:
-1. Mở **http://localhost:5173**.
-2. Đăng nhập và xem dashboard/danh sách vé.
-3. Mở màn hình cổng vào hoặc cổng ra và cấp quyền sử dụng webcam.
-4. Thử nhận diện biển số và kiểm tra vé trong SQL Server.
-5. Thử luồng xe ra, sau đó kiểm tra trạng thái vé và thời gian ra trong `dbo.Tickets`.
+1. Mở **http://localhost:5173**; hệ thống không yêu cầu đăng nhập.
+2. Mở màn hình cổng vào hoặc cổng ra và cấp quyền sử dụng webcam.
+3. Thử nhận diện biển số và kiểm tra vé trong SQL Server.
+4. Có thể mở **http://localhost:5049/swagger** để gọi trực tiếp các API; không cần lấy mã đăng nhập.
 
 Luồng dự kiến: **Camera → Python OCR → .NET API → SQL Server → React cập nhật giao diện**. Tích hợp phần mềm không đồng nghĩa với việc đã điều khiển barrier vật lý.

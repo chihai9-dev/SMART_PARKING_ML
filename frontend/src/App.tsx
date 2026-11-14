@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { fetchTickets, login, previewPlate, submitGateEvent } from './api'
+import { fetchTickets, previewPlate, submitGateEvent } from './api'
 import type { GateEventResult, PlatePreview, TicketDto } from './api'
 
 type MenuId = 'dashboard' | 'gate' | 'parking' | 'history' | 'settings'
@@ -117,48 +116,7 @@ function TicketTable({ rows, history = false }: { rows: TicketDto[]; history?: b
   )
 }
 
-function LoginScreen({ onLogin }: { onLogin: (username: string, password: string) => Promise<void> }) {
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await onLogin(username, password)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể đăng nhập.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <main className="login-screen">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-brand">
-          <div className="brand-logo">SP</div>
-          <div><div className="brand-name">Smart Parking</div><div className="brand-subtitle">Quản lý bãi xe</div></div>
-        </div>
-        <h1>Đăng nhập hệ thống</h1>
-        <p className="login-description">Đăng nhập bằng tài khoản của SmartParking API để xem dữ liệu vé trong SQL Server.</p>
-        <label className="field-label" htmlFor="username">Tên đăng nhập</label>
-        <input id="username" className="form-input" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required />
-        <label className="field-label" htmlFor="password">Mật khẩu</label>
-        <input id="password" className="form-input" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-        {error && <div className="feedback feedback-error" role="alert">{error}</div>}
-        <button className="primary-button login-button" type="submit" disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
-        <p className="login-help">Môi trường demo hiện dùng tài khoản cấu hình trong backend. Không dùng mật khẩu demo cho môi trường thực tế.</p>
-      </form>
-    </main>
-  )
-}
-
 function App() {
-  const [token, setToken] = useState(() => sessionStorage.getItem('smartparking_token') ?? '')
   const [activeMenu, setActiveMenu] = useState<MenuId>('dashboard')
   const [tickets, setTickets] = useState<TicketDto[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -195,17 +153,11 @@ function App() {
   })
 
   useEffect(() => {
-    if (!token) {
-      setTickets([])
-      setConnected(false)
-      setLoadingTickets(false)
-      return
-    }
-
     let cancelled = false
     setLoadingTickets(true)
     setApiError('')
-    fetchTickets(token)
+
+    fetchTickets()
       .then((data) => {
         if (cancelled) return
         setTickets(data)
@@ -215,18 +167,13 @@ function App() {
         if (cancelled) return
         setConnected(false)
         setApiError(err instanceof Error ? err.message : 'Không thể đọc dữ liệu từ backend.')
-        const message = err instanceof Error ? err.message.toLowerCase() : ''
-        if (message.includes('401') || message.includes('unauthorized')) {
-          sessionStorage.removeItem('smartparking_token')
-          setToken('')
-        }
       })
       .finally(() => {
         if (!cancelled) setLoadingTickets(false)
       })
 
     return () => { cancelled = true }
-  }, [token, refreshKey])
+  }, [refreshKey])
 
   useEffect(() => {
     if (activeMenu === 'gate') return
@@ -238,20 +185,6 @@ function App() {
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
   }, [])
-
-  async function handleLogin(username: string, password: string) {
-    const result = await login(username, password)
-    sessionStorage.setItem('smartparking_token', result.token)
-    setApiError('')
-    setToken(result.token)
-  }
-
-  function handleLogout() {
-    sessionStorage.removeItem('smartparking_token')
-    setToken('')
-    setTickets([])
-    setActiveMenu('dashboard')
-  }
 
   function goTo(page: MenuId) {
     setActiveMenu(page)
@@ -437,8 +370,6 @@ function App() {
     }
   }, [activeMenu, cameraOn, gateMode])
 
-  if (!token) return <LoginScreen onLogin={handleLogin} />
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -466,11 +397,11 @@ function App() {
           <div className="topbar-actions">
             <span className={'sample-label ' + (connected ? 'connected-label' : '')}><span />{connected ? 'Đã kết nối API' : loadingTickets ? 'Đang tải dữ liệu' : 'Chưa kết nối API'}</span>
             <button className="refresh-button" onClick={() => setRefreshKey((key) => key + 1)} disabled={loadingTickets}>Làm mới</button>
-            <div className="profile"><div className="profile-avatar">A</div><div className="profile-info"><strong>Admin</strong><span>Quản trị viên</span></div><button className="logout-button" onClick={handleLogout}>Đăng xuất</button></div>
+            <div className="profile"><div className="profile-avatar">SP</div><div className="profile-info"><strong>SmartParking</strong><span>Không yêu cầu đăng nhập</span></div></div>
           </div>
         </header>
 
-        {apiError && <div className="feedback feedback-error" role="alert">Không tải được dữ liệu vé: {apiError}. Hãy kiểm tra SQL Server, backend .NET và đăng nhập.</div>}
+        {apiError && <div className="feedback feedback-error" role="alert">Không tải được dữ liệu vé: {apiError}. Hãy kiểm tra SQL Server và backend .NET.</div>}
 
         {activeMenu === 'dashboard' && (
           <>
@@ -594,7 +525,7 @@ function App() {
             <div className="panel-header"><div><h3>Các thành phần của hệ thống</h3><p>React gọi API qua proxy của Vite trong môi trường phát triển.</p></div><span className={connected ? 'status-pill status-open' : 'status-pill status-pending'}>{connected ? 'Đã tải được dữ liệu' : 'Chưa xác nhận'}</span></div>
             <dl className="settings-list">
               <div><dt>Giao diện</dt><dd>React + TypeScript</dd></div>
-              <div><dt>Đăng nhập / danh sách vé</dt><dd>http://localhost:5049/api</dd></div>
+              <div><dt>Backend .NET API</dt><dd>http://localhost:5049/api</dd></div>
               <div><dt>Camera và OCR</dt><dd>http://127.0.0.1:5000/api</dd></div>
               <div><dt>Cơ sở dữ liệu</dt><dd>SQL Server · SmartParking (truy cập qua backend)</dd></div>
               <div><dt>Trạng thái backend</dt><dd>{connected ? 'Đã lấy danh sách vé thành công' : 'Chưa xác minh được qua React'}</dd></div>
