@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SmartParking.Application.DTOs.PlateScans;
 using SmartParking.Application.Interfaces;
@@ -5,6 +6,7 @@ using SmartParking.Application.Interfaces;
 namespace SmartParking.Api.Controllers;
 
 [ApiController]
+[Tags(new string[] { "Nhận diện biển số" })]
 [Route("api/[controller]")]
 public class PlateScansController : ControllerBase
 {
@@ -37,6 +39,7 @@ public class PlateScansController : ControllerBase
         {
             return NotFound(new { message = "Không tìm thấy lượt nhận diện." });
         }
+
         return Ok(scan);
     }
 
@@ -62,6 +65,7 @@ public class PlateScansController : ControllerBase
         {
             return NotFound(new { message = "Không tìm thấy bản ghi để xóa." });
         }
+
         return Ok(new { message = "Xóa bản ghi thành công." });
     }
 }
