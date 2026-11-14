@@ -11,8 +11,6 @@ import json
 import os
 import ssl
 import sys
-import threading
-import time
 
 import pandas as pd
 import joblib
@@ -70,28 +68,11 @@ TICKET_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 # .NET BACKEND CONFIGURATION
 # ============================================================
 
-# Backend hiện tại của bạn chạy tại:
-# http://localhost:5049
-#
-# Nếu sau này backend chạy port khác:
-#
-# PowerShell:
-# $env:SMARTPARKING_API_URL="http://localhost:PORT"
-#
+# Backend ASP.NET Core local URL.
 SMARTPARKING_API_URL = os.getenv(
     "SMARTPARKING_API_URL",
     "http://localhost:5049",
 ).rstrip("/")
-
-SMARTPARKING_USERNAME = os.getenv(
-    "SMARTPARKING_USERNAME",
-    "admin",
-)
-
-SMARTPARKING_PASSWORD = os.getenv(
-    "SMARTPARKING_PASSWORD",
-    "123456",
-)
 
 
 class BackendApiError(Exception):
@@ -102,17 +83,10 @@ class BackendApiError(Exception):
         self.body = body
 
 
-_backend_token = None
-_backend_token_expires_at = 0.0
-_backend_token_lock = threading.Lock()
-
-
 def _backend_ssl_context():
     """
-    Cho phép Flask Python gọi .NET HTTPS development certificate
-    nếu backend bị redirect từ HTTP sang HTTPS.
-
-    Chỉ phục vụ môi trường local/dev.
+    Cho phép Flask gọi .NET HTTPS development certificate
+    trong môi trường local/dev.
     """
     if SMARTPARKING_API_URL.startswith("https://localhost"):
         return ssl._create_unverified_context()
@@ -123,17 +97,11 @@ def _backend_ssl_context():
     return None
 
 
-def _http_json_request(
-    method,
-    url,
-    payload=None,
-    token=None,
-):
+def _http_json_request(method, url, payload=None):
     """
     Gửi HTTP request JSON tới .NET Backend.
-    Không phụ thuộc requests để tránh phải cài thêm package.
+    Các API nhận diện biển số hiện không yêu cầu JWT.
     """
-
     headers = {
         "Accept": "application/json",
     }
@@ -145,11 +113,7 @@ def _http_json_request(
             payload,
             ensure_ascii=False,
         ).encode("utf-8")
-
         headers["Content-Type"] = "application/json"
-
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
 
     req = Request(
         url,
@@ -181,9 +145,7 @@ def _http_json_request(
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            return {
-                "raw": raw,
-            }
+            return {"raw": raw}
 
     except HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
@@ -191,9 +153,7 @@ def _http_json_request(
         try:
             body_data = json.loads(raw)
         except json.JSONDecodeError:
-            body_data = {
-                "message": raw,
-            }
+            body_data = {"message": raw}
 
         message = (
             body_data.get("message")
@@ -224,111 +184,12 @@ def _http_json_request(
         )
 
 
-def _clear_backend_token():
-    global _backend_token
-    global _backend_token_expires_at
-
-    with _backend_token_lock:
-        _backend_token = None
-        _backend_token_expires_at = 0.0
-
-
-def _backend_login():
+def _backend_request(method, path, payload=None):
     """
-    Đăng nhập vào .NET Backend để lấy JWT.
+    Gọi API .NET trực tiếp, không đăng nhập và không gửi JWT.
     """
-
-    global _backend_token
-    global _backend_token_expires_at
-
-    payload = {
-        "username": SMARTPARKING_USERNAME,
-        "password": SMARTPARKING_PASSWORD,
-    }
-
-    data = _http_json_request(
-        "POST",
-        f"{SMARTPARKING_API_URL}/api/Auth/login",
-        payload,
-        None,
-    )
-
-    token = data.get("token")
-
-    if not token:
-        raise BackendApiError(
-            500,
-            "Backend login không trả về JWT token.",
-            data,
-        )
-
-    expires_in_minutes = int(
-        data.get("expiresInMinutes", 60)
-    )
-
-    with _backend_token_lock:
-        _backend_token = token
-
-        # Trừ 30 giây để tránh token vừa hết hạn giữa request.
-        _backend_token_expires_at = (
-            time.time()
-            + max(30, expires_in_minutes * 60 - 30)
-        )
-
-    return token
-
-
-def _get_backend_token():
-    global _backend_token
-    global _backend_token_expires_at
-
-    with _backend_token_lock:
-        if (
-            _backend_token
-            and time.time() < _backend_token_expires_at
-        ):
-            return _backend_token
-
-    return _backend_login()
-
-
-def _backend_request(
-    method,
-    path,
-    payload=None,
-):
-    """
-    Gọi API .NET có JWT.
-
-    Nếu JWT hết hạn hoặc Backend trả 401:
-    - xóa token
-    - login lại
-    - request lại 1 lần
-    """
-
     url = f"{SMARTPARKING_API_URL}{path}"
-
-    for attempt in range(2):
-        token = _get_backend_token()
-
-        try:
-            return _http_json_request(
-                method,
-                url,
-                payload,
-                token,
-            )
-
-        except BackendApiError as exc:
-
-            if (
-                exc.status_code == 401
-                and attempt == 0
-            ):
-                _clear_backend_token()
-                continue
-
-            raise
+    return _http_json_request(method, url, payload)
 
 
 # ============================================================
