@@ -48,10 +48,6 @@ export type ScanResult = {
   [key: string]: unknown
 }
 
-type LoginResponse = {
-  token: string
-  expiresInMinutes?: number
-}
 
 async function readResponse<T>(response: Response): Promise<T> {
   const text = await response.text()
@@ -73,22 +69,9 @@ async function readResponse<T>(response: Response): Promise<T> {
   return body as T
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const response = await fetch('/backend-api/Auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
-
-  const result = await readResponse<LoginResponse>(response)
-  if (!result.token) throw new Error('Backend không trả về mã đăng nhập.')
-  return result
-}
-
-export async function fetchPlateScans(token?: string, search?: string): Promise<PlateScanDto[]> {
+export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> {
   const url = search ? `/backend-api/PlateScans?search=${encodeURIComponent(search)}` : '/backend-api/PlateScans'
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const response = await fetch(url, { headers })
   const result = await readResponse<unknown>(response)
@@ -96,17 +79,15 @@ export async function fetchPlateScans(token?: string, search?: string): Promise<
   return result as PlateScanDto[]
 }
 
-export async function fetchPlateScanStats(token?: string): Promise<PlateScanStats> {
+export async function fetchPlateScanStats(): Promise<PlateScanStats> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const response = await fetch('/backend-api/PlateScans/stats', { headers })
   return readResponse<PlateScanStats>(response)
 }
 
-export async function deletePlateScan(id: number, token?: string): Promise<void> {
+export async function deletePlateScan(id: number): Promise<void> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const response = await fetch(`/backend-api/PlateScans/${id}`, {
     method: 'DELETE',
@@ -147,15 +128,12 @@ export async function createPlateScan(
     imagePath?: string | null
     cropImagePath?: string | null
     note?: string | null
-  },
-  token?: string
+  }
 ): Promise<PlateScanDto> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
   const response = await fetch('/backend-api/PlateScans', {
     method: 'POST',
     headers,
