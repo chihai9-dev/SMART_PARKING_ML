@@ -61,7 +61,6 @@ function formatPlateDisplay(plate: string) {
 }
 
 export default function App() {
-  const [token] = useState(() => sessionStorage.getItem('smartparking_token') ?? '')
   const [activeMenu, setActiveMenu] = useState<MenuId>('camera')
   const [scans, setScans] = useState<PlateScanDto[]>([])
   const [stats, setStats] = useState<PlateScanStats | null>(null)
@@ -107,8 +106,8 @@ export default function App() {
     setErrorMessage('')
 
     Promise.all([
-      fetchPlateScans(token),
-      fetchPlateScanStats(token),
+      fetchPlateScans(),
+      fetchPlateScanStats(),
     ])
       .then(([scansData, statsData]) => {
         if (cancelled) return
@@ -129,7 +128,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [token, refreshKey])
+  }, [refreshKey])
 
   // Quản lý Camera Webcam
   useEffect(() => {
@@ -339,7 +338,7 @@ export default function App() {
   async function handleDeleteScan(id: number) {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa lượt quét #${id} không?`)) return
     try {
-      await deletePlateScan(id, token)
+      await deletePlateScan(id)
       setRefreshKey((k) => k + 1)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Xóa thất bại.')
