@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartParking.Application.DTOs.Tickets;
 using SmartParking.Application.Interfaces;
@@ -7,7 +6,6 @@ namespace SmartParking.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class TicketsController : ControllerBase
 {
     private readonly ITicketService _service;

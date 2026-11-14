@@ -56,10 +56,6 @@ export type GateEventResult = {
   [key: string]: unknown
 }
 
-type LoginResponse = {
-  token: string
-  expiresInMinutes?: number
-}
 
 async function readResponse<T>(response: Response): Promise<T> {
   const text = await response.text()
@@ -81,21 +77,9 @@ async function readResponse<T>(response: Response): Promise<T> {
   return body as T
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const response = await fetch('/backend-api/Auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
-
-  const result = await readResponse<LoginResponse>(response)
-  if (!result.token) throw new Error('Backend không trả về mã đăng nhập.')
-  return result
-}
-
-export async function fetchTickets(token: string): Promise<TicketDto[]> {
+export async function fetchTickets(): Promise<TicketDto[]> {
   const response = await fetch('/backend-api/Tickets', {
-    headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+    headers: { Accept: 'application/json' },
   })
 
   const result = await readResponse<unknown>(response)
