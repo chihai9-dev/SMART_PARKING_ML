@@ -1,57 +1,22 @@
-# Camera nhận diện biển số trong Web Smart Parking
+# Camera nhận diện biển số trong Web ALPR
 
 ## Luồng hoạt động
 
-```text
-Chrome/Edge
-   |
-   | getUserMedia()
-   v
-Webcam máy tính
-   |
-   | Chụp 1 frame khi bấm nút
-   v
-JavaScript -> POST /api/scan-plate
-   |
-   v
-Flask -> nhận ảnh
-   |
-   v
-find_plate_regions()
-   |
-   v
-RapidOCR / EasyOCR / Tesseract
-   |
-   v
-normalize_plate()
-   |
-   v
-SQLite + file scan + JSON kết quả
-   |
-   +--> điền biển số vào form VÀO/RA
-```
+1. React Web xin quyền truy cập webcam qua getUserMedia().
+2. React gửi frame định kỳ đến Python Flask bằng POST /api/preview-plate.
+3. Python xử lý vùng biển số và OCR, sau đó trả JSON để React hiển thị.
+4. Khi cùng một biển số hợp lệ ổn định qua 3 frame, React gửi ảnh đến POST /api/scan-plate.
+5. Flask xử lý ảnh và gọi .NET POST /api/PlateScans.
+6. .NET dùng Dapper lưu kết quả vào SQL Server, bảng PlateScans.
+
+## Hai chế độ nhận ảnh
+
+- Camera trực tiếp: quét frame, hiển thị kết quả tạm thời, sau đó lưu lượt quét khi biển số ổn định.
+- Tải ảnh: người dùng chọn ảnh JPG, PNG hoặc WEBP; Python nhận diện và lưu kết quả.
 
 ## Chạy
 
-```powershell
-python -m pip install -r requirements.txt
-python app/app.py
-```
+Khởi động Python AI Service, .NET Backend và React Frontend theo README.md.
+Mở giao diện React tại http://localhost:5173 và cấp quyền camera cho trình duyệt.
 
-Mở trình duyệt tại:
-
-```text
-http://127.0.0.1:5000
-```
-
-Mở trang `/` bằng Chrome/Edge. Camera sẽ tự khởi động nếu trình duyệt đã cấp quyền; nếu chưa, bấm `Bật camera`. Khi một xe đứng ổn định trước camera, hệ thống tự nhận diện, tự cắt ảnh biển số, tự tạo mã vé và ghi vào SQLite.
-
-Trang `/parking` là màn hình camera test độc lập trên web nhưng vẫn dùng chính API `/api/scan-plate`.
-
-## Vì sao không OCR mọi frame?
-
-Không chạy OCR liên tục trên từng frame vì OCR có thể nặng và làm trải nghiệm camera bị giật. Camera hiển thị video và tự gửi frame định kỳ; OCR chỉ chốt vé khi cùng một biển số hợp lệ xuất hiện ổn định qua nhiều frame.
-
-## Quyền camera
-
-Camera của trình duyệt cần được cấp quyền. `localhost` và `127.0.0.1` là các địa chỉ phù hợp để test cục bộ.
+Preview camera không ghi database ở từng frame. Chỉ lượt quét được chốt mới được lưu vào bảng PlateScans.

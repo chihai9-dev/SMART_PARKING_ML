@@ -248,7 +248,7 @@ button:focus-visible, input:focus-visible {
 .data-table td { padding: 13px 15px; border-bottom: 1px solid #eeebf1; color: #625c6c; font-size: 11px; white-space: nowrap; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table tbody tr:hover { background: #fcfbfd; }
-.ticket-code { color: #777181 !important; font-family: Consolas, "Courier New", monospace; font-size: 10px !important; }
+.scan-id { color: #777181 !important; font-family: Consolas, "Courier New", monospace; font-size: 10px !important; }
 .plate-number { color: #302a3b; font-size: 12px; font-weight: 700; letter-spacing: .2px; }
 .status-pill { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; white-space: nowrap; }
 .status-open { color: #28764d; background: #e8f4ec; }
@@ -413,70 +413,6 @@ button:focus-visible, input:focus-visible {
 .refresh-button:hover { background: #f8f5fb; }
 .refresh-button:disabled { opacity: .55; cursor: wait; }
 
-
-/* Tự động quét 3 frame và thẻ vé điện tử */
-.auto-running-label {
-  align-self: center;
-  color: #5c4a7f;
-  font-size: 11px;
-  font-weight: 600;
-}
-.auto-scan-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 0 14px 13px;
-  padding: 12px 13px;
-  border: 1px solid #e2d9ef;
-  border-radius: 7px;
-  background: #f8f5fc;
-}
-.auto-scan-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
-.auto-scan-copy strong { color: #47345f; font-size: 12px; }
-.auto-scan-copy span { color: #796d8d; font-size: 11px; line-height: 1.55; }
-.frame-progress { display: flex; flex-shrink: 0; gap: 5px; }
-.frame-dot { width: 10px; height: 10px; border: 1px solid #c9bddb; border-radius: 50%; background: #fff; }
-.frame-dot-active { border-color: #6d539c; background: #6d539c; box-shadow: 0 0 0 3px rgba(109,83,156,.11); }
-.auto-workflow-note { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: #5c4a7f; font-size: 11px; line-height: 1.5; }
-.auto-workflow-note .note-mark { display: inline-grid; width: 21px; height: 21px; flex-shrink: 0; place-items: center; border-radius: 50%; color: #fff; background: #7862a1; }
-.digital-ticket {
-  position: relative;
-  margin: 0 14px 18px;
-  padding: 17px;
-  overflow: hidden;
-  border: 1px solid #d8cee7;
-  border-radius: 9px;
-  background: linear-gradient(145deg, #fff 0%, #fbf8ff 100%);
-}
-.digital-ticket::before, .digital-ticket::after {
-  position: absolute;
-  top: 58px;
-  width: 14px;
-  height: 14px;
-  border: 1px solid #d8cee7;
-  border-radius: 50%;
-  background: #fff;
-  content: "";
-}
-.digital-ticket::before { left: -8px; }
-.digital-ticket::after { right: -8px; }
-.digital-ticket-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px dashed #d9d0e6; }
-.digital-ticket-kicker { color: #8b7aa8; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
-.digital-ticket-header h3 { margin: 5px 0 0; color: #3e3152; font-size: 14px; line-height: 1.45; }
-.digital-ticket-header .status-pill { flex-shrink: 0; }
-.digital-ticket-code { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px dashed #e3dcec; }
-.digital-ticket-code span, .digital-ticket-grid span { display: block; margin-bottom: 4px; color: #8a8196; font-size: 10px; }
-.digital-ticket-code strong { color: #6b5294; font-size: 15px; letter-spacing: .05em; }
-.digital-ticket-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 18px; padding: 14px 0; }
-.digital-ticket-grid > div { min-width: 0; }
-.digital-ticket-grid strong { display: block; overflow-wrap: anywhere; color: #443951; font-size: 11px; line-height: 1.5; }
-.digital-ticket-footer { padding-top: 11px; border-top: 1px dashed #e3dcec; color: #8b8297; font-size: 10px; line-height: 1.5; }
-@media (max-width: 650px) {
-  .auto-scan-status { align-items: flex-start; }
-  .digital-ticket-grid { grid-template-columns: 1fr; }
-  .digital-ticket-header { flex-direction: column; }
-}
 
 /* ============================================================ */
 /* ALPR / ANPR DEDICATED STYLES                                 */

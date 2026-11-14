@@ -45,12 +45,9 @@ export type ScanResult = {
   annotated_jpeg_b64?: string
   image_path?: string
   crop_path?: string
+  database_saved?: boolean
+  database_message?: string | null
   [key: string]: unknown
-}
-
-type LoginResponse = {
-  token: string
-  expiresInMinutes?: number
 }
 
 async function readResponse<T>(response: Response): Promise<T> {
@@ -67,50 +64,41 @@ async function readResponse<T>(response: Response): Promise<T> {
 
   if (!response.ok) {
     const data = body as { message?: string; title?: string }
-    throw new Error(data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').'))
+    throw new Error(
+      data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').')
+    )
   }
 
   return body as T
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const response = await fetch('/backend-api/Auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username, password }),
+export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> {
+  const url = search
+    ? '/backend-api/PlateScans?search=' + encodeURIComponent(search)
+    : '/backend-api/PlateScans'
+
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
   })
 
-  const result = await readResponse<LoginResponse>(response)
-  if (!result.token) throw new Error('Backend không trả về mã đăng nhập.')
-  return result
-}
-
-export async function fetchPlateScans(token?: string, search?: string): Promise<PlateScanDto[]> {
-  const url = search ? `/backend-api/PlateScans?search=${encodeURIComponent(search)}` : '/backend-api/PlateScans'
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch(url, { headers })
   const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
+  if (!Array.isArray(result)) {
+    throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
+  }
   return result as PlateScanDto[]
 }
 
-export async function fetchPlateScanStats(token?: string): Promise<PlateScanStats> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch('/backend-api/PlateScans/stats', { headers })
+export async function fetchPlateScanStats(): Promise<PlateScanStats> {
+  const response = await fetch('/backend-api/PlateScans/stats', {
+    headers: { Accept: 'application/json' },
+  })
   return readResponse<PlateScanStats>(response)
 }
 
-export async function deletePlateScan(id: number, token?: string): Promise<void> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch(`/backend-api/PlateScans/${id}`, {
+export async function deletePlateScan(id: number): Promise<void> {
+  const response = await fetch('/backend-api/PlateScans/' + id, {
     method: 'DELETE',
-    headers,
+    headers: { Accept: 'application/json' },
   })
   await readResponse<unknown>(response)
 }
@@ -118,49 +106,38 @@ export async function deletePlateScan(id: number, token?: string): Promise<void>
 export async function scanPlate(image: Blob): Promise<ScanResult> {
   const form = new FormData()
   form.append('image', image, 'plate-upload.jpg')
-
   const response = await fetch('/python-api/scan-plate', {
     method: 'POST',
     body: form,
   })
-
   return readResponse<ScanResult>(response)
 }
 
 export async function previewPlate(image: Blob): Promise<PlatePreview> {
   const form = new FormData()
   form.append('image', image, 'camera-frame.jpg')
-
   const response = await fetch('/python-api/preview-plate', {
     method: 'POST',
     body: form,
   })
-
   return readResponse<PlatePreview>(response)
 }
 
-export async function createPlateScan(
-  scan: {
-    plate: string
-    vehicleType?: string | null
-    confidence: number
-    imagePath?: string | null
-    cropImagePath?: string | null
-    note?: string | null
-  },
-  token?: string
-): Promise<PlateScanDto> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
+export async function createPlateScan(scan: {
+  plate: string
+  vehicleType?: string | null
+  confidence: number
+  imagePath?: string | null
+  cropImagePath?: string | null
+  note?: string | null
+}): Promise<PlateScanDto> {
   const response = await fetch('/backend-api/PlateScans', {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify(scan),
   })
-
   return readResponse<PlateScanDto>(response)
 }

@@ -1,9 +1,8 @@
 -- =======================================================
--- KHOI TAO DATABASE VA BANG CHO SMART PARKING (.NET BACKEND)
--- Chay file nay trong VS Code bang SQLTools hoac SSMS
+-- KHOI TAO DATABASE VA BANG LUU LICH SU NHAN DIEN BIEN SO
+-- Chay file nay trong SSMS hoac cong cu SQL Server
 -- =======================================================
 
--- 1. Tao Database neu chua co
 IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'SmartParking')
 BEGIN
     CREATE DATABASE SmartParking;
@@ -15,46 +14,24 @@ BEGIN
 END
 GO
 
--- 2. Chuyen sang Database SmartParking
 USE SmartParking;
 GO
 
--- 3. Tao bang Tickets
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Tickets')
+-- Xoa bang Tickets cu neu van con. Du lieu ve cu trong bang nay se bi xoa.
+IF OBJECT_ID(N'dbo.Tickets', N'U') IS NOT NULL
 BEGIN
-    CREATE TABLE Tickets (
-        TicketId BIGINT IDENTITY(1,1) PRIMARY KEY,
-        TicketCode NVARCHAR(100) NOT NULL,
-        Plate NVARCHAR(50) NOT NULL,
-        VehicleType NVARCHAR(50) NOT NULL DEFAULT 'Motorbike',
-        EntryTime DATETIME2 NOT NULL,
-        EntryImagePath NVARCHAR(500) NULL,
-        PlateImagePath NVARCHAR(500) NULL,
-        ExitTime DATETIME2 NULL,
-        ExitImagePath NVARCHAR(500) NULL,
-        Status INT NOT NULL DEFAULT 1, -- 1: Open, 2: Closed, 3: Alert
-        PenaltyAmount DECIMAL(18,2) NOT NULL DEFAULT 0,
-        CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
-    );
-
-    CREATE INDEX IX_Tickets_Plate_Status ON Tickets(Plate, Status);
-    CREATE INDEX IX_Tickets_TicketCode ON Tickets(TicketCode);
-
-    PRINT N'Da tao bang Tickets thanh cong!';
-END
-ELSE
-BEGIN
-    PRINT N'Bang Tickets da ton tai.';
+    DROP TABLE dbo.Tickets;
+    PRINT N'Da xoa bang Tickets cu.';
 END
 GO
 
--- 4. Tao bang PlateScans (Luu lich su nhan dien bien so xe - ALPR)
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'PlateScans')
+-- Bang PlateScans luu lich su nhan dien bien so xe.
+IF OBJECT_ID(N'dbo.PlateScans', N'U') IS NULL
 BEGIN
-    CREATE TABLE PlateScans (
+    CREATE TABLE dbo.PlateScans (
         ScanId BIGINT IDENTITY(1,1) PRIMARY KEY,
         Plate NVARCHAR(50) NOT NULL,
-        VehicleType NVARCHAR(50) NOT NULL DEFAULT 'Motorbike',
+        VehicleType NVARCHAR(50) NOT NULL DEFAULT 'Vehicle',
         Confidence FLOAT NOT NULL DEFAULT 1.0,
         ImagePath NVARCHAR(500) NULL,
         CropImagePath NVARCHAR(500) NULL,
@@ -63,9 +40,8 @@ BEGIN
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
     );
 
-    CREATE INDEX IX_PlateScans_Plate ON PlateScans(Plate);
-    CREATE INDEX IX_PlateScans_ScanTime ON PlateScans(ScanTime);
-
+    CREATE INDEX IX_PlateScans_Plate ON dbo.PlateScans(Plate);
+    CREATE INDEX IX_PlateScans_ScanTime ON dbo.PlateScans(ScanTime);
     PRINT N'Da tao bang PlateScans thanh cong!';
 END
 ELSE
@@ -73,4 +49,3 @@ BEGIN
     PRINT N'Bang PlateScans da ton tai.';
 END
 GO
-

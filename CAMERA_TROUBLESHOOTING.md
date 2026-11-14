@@ -1,17 +1,17 @@
 # Khắc phục lỗi camera
 
-## URL nên dùng
-Mở Chrome/Edge bằng một trong hai địa chỉ:
-- http://127.0.0.1:5000
-- http://localhost:5000
+## Địa chỉ giao diện
 
-Không dùng `http://192.168.x.x:5000` trên Chrome nếu chưa cấu hình HTTPS.
+Chạy React Frontend rồi mở http://localhost:5173 (hoặc đúng địa chỉ Vite hiển thị trong terminal). Không mở giao diện chính tại cổng Flask 5000.
 
-## Nếu hiện “Trình duyệt đang chặn camera”
-Bấm biểu tượng khóa ở thanh địa chỉ → Camera → Cho phép → tải lại trang.
+## Nếu trình duyệt chặn camera
 
-## Nếu hiện “Không tìm thấy webcam”
-Kiểm tra webcam trong Windows Settings → Privacy & security → Camera và kiểm tra Camera access / Let desktop apps access your camera.
+Bấm biểu tượng quyền trang web ở thanh địa chỉ, đặt Camera thành Allow/Cho phép và tải lại trang.
 
-## Nếu camera đang bị ứng dụng khác dùng
-Đóng Camera, Zoom, Teams, Discord hoặc tab web khác đang dùng webcam. Sau đó mở lại trang.
+## Nếu không tìm thấy webcam
+
+Kiểm tra Windows Settings > Privacy & security > Camera. Cho phép Camera access và quyền truy cập camera cho ứng dụng desktop.
+
+## Nếu camera đang được ứng dụng khác sử dụng
+
+Đóng ứng dụng Camera, Zoom, Teams, Discord hoặc tab web khác đang sử dụng webcam, rồi thử lại.
