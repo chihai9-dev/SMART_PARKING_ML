@@ -17,14 +17,6 @@ GO
 USE SmartParking;
 GO
 
--- Xoa bang Tickets cu neu van con. Du lieu ve cu trong bang nay se bi xoa.
-IF OBJECT_ID(N'dbo.Tickets', N'U') IS NOT NULL
-BEGIN
-    DROP TABLE dbo.Tickets;
-    PRINT N'Da xoa bang Tickets cu.';
-END
-GO
-
 -- Bang PlateScans luu lich su nhan dien bien so xe.
 IF OBJECT_ID(N'dbo.PlateScans', N'U') IS NULL
 BEGIN
