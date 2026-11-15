@@ -11,8 +11,6 @@ SmartParking hiện tập trung vào chức năng **nhận diện biển số xe
 - Tra cứu, lọc và xóa lượt nhận diện.
 - Swagger UI để kiểm tra .NET Web API.
 
-Hệ thống không còn chức năng tạo vé, check-in/check-out, trả xe, tính phí/phạt, lịch sử vé hoặc đăng nhập/JWT.
-
 ## 2. Kiến trúc
 
 | Thành phần | Công nghệ | Vai trò |
@@ -43,9 +41,7 @@ pip install -r requirements.txt
 
 Mở database/init_smartparking_sqlserver.sql trong SSMS và chạy để tạo database SmartParking cùng bảng PlateScans.
 
-File SQL có lệnh xóa bảng dbo.Tickets cũ nếu bảng vẫn còn. Lệnh này sẽ xóa dữ liệu vé cũ trong bảng đó. Nó không xóa bảng PlateScans.
-
-Kiểm tra chuỗi kết nối trong Backend/src/Smartparking.Api/appsettings.json. Giá trị hiện tại dùng SQL Server instance localhost\SQLEXPRESS04. Hãy đổi tên instance nếu máy bạn dùng tên khác.
+Kiểm tra chuỗi kết nối trong Backend/src/Smartparking.Api/appsettings.json. Giá trị hiện tại dùng SQL Server instance localhost\\SQLEXPRESS04. Hãy đổi tên instance nếu máy bạn dùng tên khác.
 
 ## 4. Chạy hệ thống
 
