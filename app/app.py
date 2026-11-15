@@ -28,7 +28,7 @@ SCAN_DIR.mkdir(parents=True, exist_ok=True)
 
 SMARTPARKING_API_URL = os.getenv(
     "SMARTPARKING_API_URL",
-    "http://localhost:5049",
+    "http://127.0.0.1:5049",
 ).rstrip("/")
 
 
