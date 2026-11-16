@@ -23,3 +23,6 @@ Thumbs.db
 Backend/**/bin/
 Backend/**/obj/
 Backend/.vs/
+
+# Allow the trained plate-color model to be versioned
+!models/classification/best_classification_model.pkl

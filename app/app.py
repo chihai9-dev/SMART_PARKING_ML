@@ -17,7 +17,9 @@ ROOT_DIR = BASE_DIR.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from src.models.classification import load_color_model, predict_plate_color
 from src.vision.plate_ocr import normalize_plate, recognize_plate
+from src.vision.vehicle_type import infer_vehicle_type_from_plate
 
 
 app = Flask(__name__)
@@ -25,6 +27,9 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 SCAN_DIR = ROOT_DIR / "data" / "processed" / "scans"
 SCAN_DIR.mkdir(parents=True, exist_ok=True)
+
+COLOR_MODEL_META_PATH = ROOT_DIR / "models" / "classification" / "model_metadata.json"
+color_model = load_color_model()
 
 SMARTPARKING_API_URL = os.getenv(
     "SMARTPARKING_API_URL",
@@ -139,6 +144,21 @@ def _save_scan_record(record: dict):
         del _scan_history[100:]
 
 
+def _classify_crop_b64(crop_b64: str | None) -> dict:
+    if not crop_b64:
+        return {}
+    try:
+        raw = base64.b64decode(crop_b64, validate=True)
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        crop_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if crop_bgr is None:
+            return {}
+        return predict_plate_color(color_model, crop_bgr)
+    except Exception as exc:
+        print("[Warning] Không thể phân loại màu biển số: {}".format(exc))
+        return {}
+
+
 def _safe_upload_name(filename: str):
     name = Path(filename).name
     safe = "".join(
@@ -150,10 +170,40 @@ def _safe_upload_name(filename: str):
 
 @app.route("/")
 @app.route("/dashboard")
-@app.route("/parking")
 @app.route("/history")
 def frontend_redirect():
     return redirect("http://localhost:5173/", code=302)
+
+
+@app.route("/api/model-info")
+def model_info():
+    if COLOR_MODEL_META_PATH.is_file():
+        try:
+            data = json.loads(COLOR_MODEL_META_PATH.read_text(encoding="utf-8"))
+            return jsonify({"status": "success", "model": data})
+        except (OSError, json.JSONDecodeError) as exc:
+            return jsonify({"status": "error", "message": str(exc)}), 500
+    return jsonify({
+        "status": "error",
+        "message": "Chưa có metadata mô hình. Hãy chạy: python train_plate_color.py",
+    }), 404
+
+
+@app.route("/api/classify-plate-color", methods=["POST"])
+def classify_plate_color_only():
+    uploaded = request.files.get("image")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"status": "error", "message": "Hãy gửi kèm file ảnh vùng biển số."}), 400
+    image_bytes = uploaded.read()
+    if not image_bytes:
+        return jsonify({"status": "error", "message": "File ảnh không có dữ liệu."}), 400
+    image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        return jsonify({"status": "error", "message": "Không giải mã được file ảnh."}), 400
+    try:
+        return jsonify({"status": "success", **predict_plate_color(color_model, image)})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @app.route("/api/scan-plate", methods=["POST"])
@@ -179,7 +229,9 @@ def scan_plate():
 
         ocr = recognize_plate(image_bytes)
         detected_plate = normalize_plate(ocr.get("plate") or "")
-        vehicle_type = "Vehicle"
+        plate_color = _classify_crop_b64(ocr.get("crop_jpeg_b64"))
+        vehicle_type = infer_vehicle_type_from_plate(detected_plate) or "Vehicle"
+        color_label = plate_color.get("color_label") or "Chưa phân loại màu biển số"
 
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         safe_filename = _safe_upload_name(uploaded.filename)
@@ -203,6 +255,7 @@ def scan_plate():
             "image_path": str(image_path),
             "crop_path": crop_path,
             "vehicle_type": vehicle_type,
+            "plate_color": plate_color,
             "extra": {
                 "bbox": ocr.get("bbox"),
                 "raw_candidates": ocr.get("raw_candidates"),
@@ -229,7 +282,7 @@ def scan_plate():
                             if crop_path
                             else None
                         ),
-                        "note": ocr.get("engine") or "Plate OCR",
+                        "note": "{} | {}".format(ocr.get("engine") or "Plate OCR", color_label),
                     },
                 )
                 database_saved = True
@@ -250,6 +303,7 @@ def scan_plate():
                 "engine": ocr.get("engine"),
                 "message": ocr.get("message"),
                 "vehicle_type": vehicle_type,
+                "plate_color": plate_color,
                 "raw_candidates": ocr.get("raw_candidates", []),
                 "bbox": ocr.get("bbox"),
                 "crop_jpeg_b64": ocr.get("crop_jpeg_b64"),
@@ -320,6 +374,8 @@ def preview_plate():
 
         ocr = recognize_plate(image_bytes)
         plate = normalize_plate(ocr.get("plate") or "")
+        plate_color = _classify_crop_b64(ocr.get("crop_jpeg_b64"))
+        vehicle_type = infer_vehicle_type_from_plate(plate)
 
         return jsonify(
             {
@@ -329,7 +385,8 @@ def preview_plate():
                 "confidence": ocr.get("confidence", 0),
                 "engine": ocr.get("engine", "none"),
                 "message": ocr.get("message", ""),
-                "vehicle_type": "",
+                "vehicle_type": vehicle_type,
+                "plate_color": plate_color,
                 "bbox": ocr.get("bbox"),
                 "annotated_jpeg_b64": ocr.get("annotated_jpeg_b64"),
                 "crop_jpeg_b64": ocr.get("crop_jpeg_b64"),
@@ -357,8 +414,8 @@ def list_scans():
 
 if __name__ == "__main__":
     print("==================================================")
-    print(" SmartParking - ALPR / Nhận diện biển số")
-    print(" Python AI Service + .NET PlateScans API")
+    print(" ALPR System - Nhận diện & Phân loại Biển số xe")
+    print(" YOLO/OCR + RandomForest Color Classifier + .NET API")
     print("==================================================")
     print("Backend: {}".format(SMARTPARKING_API_URL))
     print("Python: http://127.0.0.1:5000")
