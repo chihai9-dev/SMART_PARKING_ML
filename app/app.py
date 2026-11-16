@@ -5,6 +5,8 @@ from urllib.request import Request, urlopen
 
 import base64
 import json
+import cv2
+import numpy as np
 import os
 import ssl
 import sys

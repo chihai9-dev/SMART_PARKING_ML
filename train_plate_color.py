@@ -1,53 +1,124 @@
-"""Huáº¥n luyá»‡n Random Forest phÃ¢n loáº¡i mÃ u ná»n biá»ƒn Viá»‡t Nam."""
+"""Huáº¥n luyá»‡n Random Forest phÃ¢n loáº¡i mÃ u ná»n biá»ƒn sá»‘ Viá»‡t Nam."""
 from __future__ import annotations
-
 import json
 import random
 from pathlib import Path
-
 import cv2
 import joblib
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyphot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from PIL import Image, ImageDraw, ImageFont
-
 from src.data.split_data import split_train_test
 from src.evaluation.metrics import evaluate_classification
 from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_features
-from src.models.classification import (
-    COLOR_LABELS_VI,
-    MODEL_PATH,
-    train_classification_model,
-)
+from src.models.classification import COLOR_LABELS_VI, MODEL_PATH, train_classification_model
 
 ROOT = Path(__file__).resolve().parent
 META_OUT = MODEL_PATH.parent / "model_metadata.json"
 CSV_OUT = ROOT / "outputs" / "results" / "classification_results.csv"
 CM_FIG_OUT = ROOT / "outputs" / "figures" / "confusion_matrix.png"
 FI_FIG_OUT = ROOT / "outputs" / "figures" / "feature_importance.png"
-
-PLATE_COLOR_THEMES = {
-    "White":  {"bg": (235, 235, 232), "fg": (20, 20, 20)},
-    "Yellow": {"bg": (50, 205, 240), "fg": (20, 20, 20)},
-    "Blue":   {"bg": (175, 75, 20), "fg": (245, 245, 245)},
-    "Red":   {"bg": (35, 35, 195), "fg": (245, 245, 245)},
+THEMES = {
+    "White": ((235,235,232),(20,20,20)),
+    "Yellow": ((50,205,240),(20,20,20)),
+    "Blue": ((175,75,20),(245,245,245)),
+    "Red": ((35,35,195),(245,245,245)),
 }
 
-
-def _load_font(size: int):
-    candidates = [
-        "C:/Windows/Fonts/arialbd.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    ]
-    for candidate in candidates:
-        if Path(candidate).exists():
-            return ImageFont.truetype(candidate, size)
+def load_font(size):
+    for p in ("C:/Windows/Fonts/arialbd.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+        if Path(p).exists():
+            return ImageFont.truetype(p, size)
     return ImageFont.load_default()
 
+def generate_synthetic_plate(label, rng):
+    bg, fg = THEMES[label]
+    bg_rgb = tuple(int(np.clip(c + rng.randint(-25,25),0,255)) for c in (bg[2],bg[1],bg[0]))
+    fg_rgb = (fg[2],fg[1],fg[0])
+    two = rng.random() < 0.55
+    w,h = (260,190) if two else (420,110)
+    image = Image.new("RGB",(w,h),bg_rgb)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([4,4,w-5,h-5], outline=fg_rgb, width=4)
+    font = load_font(rng.randint(36,46))
+    prefix = "TM" if label == "Red" else rng.choice(["29","30","51","59","80","92"])
+    series = rng.choice(["A","B1","C","F","H1","LD"])
+    number = f"{rng.randint(100,999)}.{rng.randint(10,99)}"
+    if two:
+        draw.text((w*.22,h*.14),f"{prefix}-{series}",fill=fg_rgb,font=font)
+        draw.text((w*.16,h*.54),number,fill=fg_rgb,font=font)
+    else:
+        draw.text((w*.10,h*.26),f"{prefix}{series}-{number}",fill=fg_rgb,font=font)
+    bgr = np.asarray(image)[:,:,::-1].copy().astype(np.float32)
+    bgr = np.clip(bgr*rng.uniform(.70,1.25)+rng.randint(-25,25),0,255)
+    noise = np.random.default_rng(rng.randint(0,99999)).normal(0,6,bgr.shape)
+    return np.clip(bgr+noise,0,255).astype(np.uint8)
 
-def _generate_synthetic_plate(color_class: str, rng: random.Random) -> np.ndarray:
-    """Sinh anh biá»ƒn sá»‘ giÁº£l láº­p vá»›i nhê¹ Ñ¡§†îÔÏ…¹œ°ÓÃ…¹œÁ£†ê¸Û€¹¡§†îÔ…µ•É„¸ˆˆˆ(€€€Ñ¡•µ”€ôA1Q}=1=I}Q!5Mm½±½É}±…ÍÍt(€€€ˆ°œ°È€ôÑ¡•µ•l‰‰œ‰t(€€€™ˆ°™œ°™È€ôÑ¡•µ•l‰™œ‰t(€€€‰}Éˆ€ô€ (€€€€€€€¥¹Ğ¡¹À¹±¥À¡È€¬É¹œ¹É…¹‘¥¹Ğ ´ÈÔ°€ÈÔ¤°€À°€ÈÔÔ¤¤°(€€€€€€€¥¹Ğ¡¹À¹±¥À¡œ€¬É¹œ¹É…¹‘¥¹Ğ ´ÈÔ°€ÈÔ¤°€À°€ÈÔÔ¤¤°(€€€€€€€¥¹Ğ¡¹À¹±¥À¡ˆ€¬É¹œ¹É…¹‘¥¹Ğ ´ÈÔ°€ÈÔ¤°€À°€ÈÔÔ¤¤°(€€€€¤(€€€™}Éˆ€ô€¡™È°™œ°™ˆ¤((€€€Ñİ½}±¥¹”€ôÉ¹œ¹É…¹‘½´ ¤€ğ€À¸ÔÔ(€€€İ¥‘Ñ °¡•¥¡Ğ€ô€ ÈØÀ°€ÄäÀ¤¥˜Ñİ½}±¥¹”•±Í”€ ĞÈÀ°€ÄÄÀ¤(€€€¥µ…”€ô%µ…”¹¹•Ü ‰Iˆ°€¡İ¥‘Ñ °¡•¥¡Ğ¤°‰}Éˆ¤(€€€‘É…Ü€ô%µ…•É…Ü¹É…Ü¡¥µ…”¤(€€€‘É…Ü¹É•Ñ…¹±”¡lĞ°€Ğ°İ¥‘Ñ €´€Ô°¡•¥¡Ğ€´€Õt°½ÕÑ±¥¹”õ™}Éˆ°İ¥‘Ñ ôĞ¤(€€€™½¹Ğ€ô}±½…‘}™½¹Ğ¡É¹œ¹É…¹‘¥¹Ğ ÌØ°€ĞØ¤¤(€€€ÁÉ½Ù¥¹”€ô€‰Q4ˆ¥˜½±½É}±…ÍÌ€ôô€‰I•ˆ•±Í”É¹œ¹¡½¥”¡lˆÈäˆ°€ˆÌÀˆ°€ˆÔÄˆ°€ˆÔäˆ°€ˆàÀˆ°€ˆäÈ‰t¤(€€€Í•É¥•Ì€ôÉ¹œ¹¡½¥”¡l‰ˆ°€‰Äˆ°€‰ˆ°€‰ˆ°€‰ Äˆ°€‰1‰t¤(€€€¹Õµ‰•È€ô˜‰íÉ¹œ¹É…¹‘¥¹Ğ ÄÀÀ°€äää¥ô¹íÉ¹œ¹É…¹‘¥¹Ğ ÄÀ°€ää¥ôˆ((€€€¥˜Ñİ½}±¥¹”è(€€€€€€€‘É…Ü¹Ñ•áĞ ¡İ¥‘Ñ €¨€À¸ÈÈ°¡•¥¡Ğ€¨€À¸ÄĞ¤°˜‰íÁÉ½Ù¥¹•ôµíÍ•É¥•Íôˆ°™¥±°õ™}Éˆ°™½¹Ğõ™½¹Ğ¤(€€€€€€€‘É…Ü¹Ñ•áĞ ¡İ¥‘Ñ €¨€À¸ÄØ°¡•¥¡Ğ€¨€À¸ÔĞ¤°¹Õµ‰•È°™¥±°õ™}Éˆ°™½¹Ğõ™½¹Ğ¤(€€€•±Í”è(€€€€€€€‘É…Ü¹Ñ•áĞ ¡İ¥‘Ñ €¨€À¸ÄÀ°¡•¥¡Ğ€¨€À¸ÈØ¤°˜‰íÁÉ½Ù¥¹•õíÍ•É¥•Íôµí¹Õµ‰•Éôˆ°™¥±°õ™}Éˆ°™½¹Ğõ™½¹Ğ¤((€€€‰È€ô¹À¹…Í…ÉÉ…ä¡¥µ…”¥lè°€è°€èè´Åt¹½Áä ¤(€€€…±Á¡„€ôÉ¹œ¹Õ¹¥™½É´ À¸ÜÀ°€Ä¸ÈÔ¤(€€€‰•Ñ„€ôÉ¹œ¹É…¹‘¥¹Ğ ´ÈÔ°€ÈÔ¤(€€€‰È€ô¹À¹±¥À¡‰È¹…ÍÑåÁ”¡¹À¹™±½…ĞÌÈ¤€¨…±Á¡„€¬‰•Ñ„°€À°€ÈÔÔ¤¹…ÍÑåÁ”¡¹À¹Õ¥¹Ğà¤(€€€¹½¥Í•}É¹œ€ô¹À¹É…¹‘½´¹‘•™…Õ±Ñ}É¹œ¡É¹œ¹É…¹‘¥¹Ğ À°€äääää¤¤(€€€¹½¥Í”€ô¹½¥Í•}É¹œ¹¹½Éµ…° À°€Ø°‰È¹Í¡…Á”¤(€€€É•ÑÕÉ¸¹À¹±¥À¡‰È¹…ÍÑåÁ”¡¹À¹™±½…ĞÌÈ¤€¬¹½¥Í”°€À°€ÈÔÔ¤¹…ÍÑåÁ”¡¹À¹Õ¥¹Ğà¤(()‘•˜‰Õ¥±‘}‘…Ñ…Í•Ğ¡Í…µÁ±•Í}Á•É}±…ÍÌè¥¹Ğ€ô€ÈÔÀ¤è(€€€€ˆˆ‰/†êıĞ£†îÀƒ†ê¹ Ñ£†êµĞƒGŒŸ…¸¹£¸€¡»†êıÔÌ¤Û†îm¤ƒ†ê¹ Ó†îU¹œ£†îÀ¸ˆˆˆ(€€€É¹œ€ôÉ…¹‘½´¹I…¹‘½´ ĞÈ¤(€€€É½İÍ}à°É½İÍ}ä€ômt°mt(€€€Í½ÕÉ•}½Õ¹ÑÌ€ôì‰É•…°ˆè€À°€‰Íå¹Ñ¡•Ñ¥Œˆè€Áô((€€€™½È±…‰•°¥¸A1Q}=1=I}Q!5Lè(€€€€€€€É•…±}‘¥È€ôI==P€¼€‰‘…Ñ„ˆ€¼€‰±…‰•±•‘}Á±…Ñ•Ìˆ€¼±…‰•°(€€€€€€€¥˜É•…±}‘¥È¹¥Í}‘¥È ¤è(€€€€€€€€€€€™½È¥µ…•}™¥±”¥¸Í½ÉÑ•¡É•…±}‘¥È¹±½ˆ ˆ¨ˆ¤¤è(€€€€€€€€€€€€€€€¥˜¹½Ğ¥µ…•}™¥±”¹¥Í}™¥±” ¤è(€€€€€€€€€€€€€€€€€€€½¹Ñ¥¹Õ”(€€€€€€€€€€€€€€€¥µ…”€ôØÈ¹¥µÉ•…¡ÍÑÈ¡¥µ…•}™¥±”¤¤(€€€€€€€€€€€€€€€¥˜¥µ…”¥Ì¹½Ğ9½¹”è(€€€€€€€€€€€€€€€€€€€Ù•Ñ½È°|€ô•áÑÉ…Ñ}Á±…Ñ•}½±½É}™•…ÑÕÉ•Ì¡¥µ…”¤(€€€€€€€€€€€€€€€€€€€É½İÍ}à¹…ÁÁ•¹¡Ù•Ñ½È¤(€€€€€€€€€€€€€€€€€€€É½İÍ}ä¹…ÁÁ•¹¡±…‰•°¤(€€€€€€€€€€€€€€€€€€€Í½ÕÉ•}½Õ¹ÑÍl‰É•…°‰t€¬ô€Ä((€€€€€€€™½È|¥¸É…¹”¡Í…µÁ±•Í}Á•É}±…ÍÌ¤è(€€€€€€€€€€€É½À€ô}•¹•É…Ñ•}Íå¹Ñ¡•Ñ¥}Á±…Ñ”¡±…‰•°°É¹œ¤(€€€€€€€€€€€Ù•Ñ½È°|€ô•áÑÉ…Ñ}Á±…Ñ•}½±½É}™•…ÑÕÉ•Ì¡É½À¤(€€€€€€€€€€€É½İÍ}à¹…ÁÁ•¹¡Ù•Ñ½È¤(€€€€€€€€€€€É½İÍ}ä¹…ÁÁ•¹¡±…‰•°¤(€€€€€€€€€€€Í½ÕÉ•}½Õ¹ÑÍl‰Íå¹Ñ¡•Ñ¥Œ‰t€¬ô€Ä((€€€¥˜¹½ĞÉ½İÍ}àè(€€€€€€€É…¥Í”IÕ¹Ñ¥µ•ÉÉ½È ‰-£Ñ¹œÓ†ê…¼ƒGÃ†îŒ“†î¼±§†îÔ¡×†ê•¸±Õç†î¸¸ˆ¤(€€€É•ÑÕÉ¸Á¹…Ñ…É…µ”¡É½İÍ}à°½±Õµ¹ÌõQUI}95L¤°¹À¹…Í…ÉÉ…ä¡É½İÍ}ä¤°Í½ÕÉ•}½Õ¹ÑÌ(()‘•˜µ…¥¸ ¤è(€€€ÁÉ¥¹Ğ ˆÄ¸S†ê…¼“†î¼±§†îÔÛ€ÑËµ á×†ê•Ğ€ÄÀƒG†êİŒÑËÁ¹œ!MX¸¸¸ˆ¤(€€€a}‘˜°ä°Í½ÕÉ•}½Õ¹ÑÌ€ô‰Õ¥±‘}‘…Ñ…Í•Ğ¡Í…µÁ±•Í}Á•É}±…ÍÌôÈÔÀ¤(€€€ÁÉ¥¹Ğ¡˜ˆ€€†î¼±§†îÔƒ†ê¹ Ñ£†êµĞèíÍ½ÕÉ•}½Õ¹ÑÍlÉ•…°uôìƒ†ê¹ Ó†îU¹œ£†îÀèíÍ½ÕÉ•}½Õ¹ÑÍlÍå¹Ñ¡•Ñ¥Œuôˆ¤((€€€ÁÉ¥¹Ğ ˆÈ¸¡¥„QÉ…¥¸€ àÀ”¤€¼Q•ÍĞ€ ÈÀ”¤ÌÁ£‰¸Ó†ê¹œ¸¸¸ˆ¤(€€€a}ÑÉ…¥¸°a}Ñ•ÍĞ°å}ÑÉ…¥¸°å}Ñ•ÍĞ€ôÍÁ±¥Ñ}ÑÉ…¥¹}Ñ•ÍĞ (€€€€€€€a}‘˜°ä°Ñ•ÍÑ}Í¥é”ôÀ¸È°É…¹‘½µ}ÍÑ…Ñ”ôĞÈ(€€€€¤((€€€ÁÉ¥¹Ğ ˆÌ¸!×†ê•¸±Õç†î¸I…¹‘½µ½É•ÍÑ±…ÍÍ¥™¥•È¸¸¸ˆ¤(€€€µ½‘•°€ôÑÉ…¥¹}±…ÍÍ¥™¥…Ñ¥½¹}µ½‘•°¡a}ÑÉ…¥¸¹Ù…±Õ•Ì°å}ÑÉ…¥¸°É…¹‘½µ}ÍÑ…Ñ”ôĞÈ¤((€€€ÁÉ¥¹Ğ ˆĞ¸ƒC…¹ §„ÑË©¸Ó†êµÀQ•ÍĞ¸¸¸ˆ¤(€€€å}ÁÉ•€ôµ½‘•°¹ÁÉ•‘¥Ğ¡a}Ñ•ÍĞ¹Ù…±Õ•Ì¤(€€€µ•ÑÉ¥Ì€ô•Ù…±Õ…Ñ•}±…ÍÍ¥™¥…Ñ¥½¸¡å}Ñ•ÍĞ°å}ÁÉ•¤(€€€ÁÉ¥¹Ğ¡˜ˆ€€ÕÉ…ä€ôíµ•ÑÉ¥Íl…ÕÉ…äuôğÄµµ…É¼€ôíµ•ÑÉ¥Íl˜Å}µ…É¼uôˆ¤(€€€ÁÉ¥¹Ğ¡µ•ÑÉ¥Íl‰É•Á½ÉĞ‰t¤((€€€5=1}AQ ¹Á…É•¹Ğ¹µ­‘¥È¡Á…É•¹ÑÌõQÉÕ”°•á¥ÍÑ}½¬õQÉÕ”¤(€€€MY}=UP¹Á…É•¹Ğ¹µ­‘¥È¡Á…É•¹ÑÌõQÉÕ”°•á¥ÍÑ}½¬õQÉÕ”¤(€€€5}%}=UP¹Á…É•¹Ğ¹µ­‘¥È¡Á…É•¹ÑÌõQÉÕ”°•á¥ÍÑ}½¬õQÉÕ”¤(€€€%}%}=UP¹Á…É•¹Ğ¹µ­‘¥È¡Á…É•¹ÑÌõQÉÕ”°•á¥ÍÑ}½¬õQÉÕ”¤((€€€©½‰±¥ˆ¹‘ÕµÀ¡µ½‘•°°5=1}AQ ¤(€€€Á¹…Ñ…É…µ”¡mì(€€€€€€€€‰µ½‘•°ˆè€‰I…¹‘½µ½É•ÍÑ±…ÍÍ¥™¥•Èˆ°(€€€€€€€€‰¹}•ÍÑ¥µ…Ñ½ÉÌˆè€ÄÈÀ°(€€€€€€€€‰µ…á}‘•ÁÑ ˆè€ÄÈ°(€€€€€€€€‰ÑÉ…¥¹}Í…µÁ±•Ìˆè±•¸¡a}ÑÉ…¥¸¤°(€€€€€€€€‰Ñ•ÍÑ}Í…µÁ±•Ìˆè±•¸¡a}Ñ•ÍĞ¤°(€€€€€€€€‰É•…±}Í…µÁ±•ÌˆèÍ½ÕÉ•}½Õ¹ÑÍl‰É•…°‰t°(€€€€€€€€‰Íå¹Ñ¡•Ñ¥}Í…µÁ±•ÌˆèÍ½ÕÉ•}½Õ¹ÑÍl‰Íå¹Ñ¡•Ñ¥Œ‰t°(€€€€€€€€‰…ÕÉ…äˆèµ•ÑÉ¥Íl‰…ÕÉ…ä‰t°(€€€€€€€€‰ÁÉ•¥Í¥½¹}µ…É¼ˆèµ•ÑÉ¥Íl‰ÁÉ•¥Í¥½¹}µ…É¼‰t°(€€€€€€€€‰É•…±±}µ…É¼ˆèµ•ÑÉ¥Íl‰É•…±±}µ…É¼‰t°(€€€€€€€€‰˜Å}µ…É¼ˆèµ•ÑÉ¥Íl‰˜Å}µ…É¼‰t°(€€€õt¤¹Ñ½}ÍØ¡MY}=UP°¥¹‘•àõ…±Í”¤((€€€±…‰•±Ì€ôµ•ÑÉ¥Íl‰±…‰•±Ì‰t(€€€´€ô¹À¹…Í…ÉÉ…ä¡µ•ÑÉ¥Íl‰½¹™ÕÍ¥½¹}µ…ÑÉ¥à‰t¤(€€€Á±Ğ¹™¥ÕÉ”¡™¥Í¥é”ô Ø°€Ô¤¤(€€€Í¹Ì¹¡•…Ñµ…À¡´°…¹¹½ĞõQÉÕ”°™µĞô‰ˆ°µ…Àô‰	±Õ•Ìˆ°áÑ¥­±…‰•±Ìõ±…‰•±Ì°åÑ¥­±…‰•±Ìõ±…‰•±Ì¤(€€€Á±Ğ¹Ñ¥Ñ±” ‰½¹™ÕÍ¥½¸5…ÑÉ¥à€´I…¹‘½´½É•ÍĞ€¡A±…Ñ”½±½È¤ˆ¤(€€€Á±Ğ¹á±…‰•° ‰AÉ•‘¥Ñ•ˆ¤(€€€Á±Ğ¹å±…‰•° ‰ÑÕ…°ˆ¤(€€€Á±Ğ¹Ñ¥¡Ñ}±…å½ÕĞ ¤(€€€Á±Ğ¹Í…Ù•™¥œ¡5}%}=UP°‘Á¤ôÄÔÀ¤(€€€Á±Ğ¹±½Í” ¤((€€€¥µÁ½ÉÑ…¹•Ì€ôÁ¹M•É¥•Ì¡µ½‘•°¹™•…ÑÕÉ•}¥µÁ½ÉÑ…¹•Í|°¥¹‘•àõQUI}95L¤¹Í½ÉÑ}Ù…±Õ•Ì ¤(€€€Á±Ğ¹™¥ÕÉ”¡™¥Í¥é”ô Ü°€Ğ¸Ô¤¤(€€€¥µÁ½ÉÑ…¹•Ì¹Á±½Ğ¡­¥¹ô‰‰…É ˆ¤(€€€Á±Ğ¹Ñ¥Ñ±” ‰•…ÑÕÉ”%µÁ½ÉÑ…¹”€´I…¹‘½´½É•ÍĞˆ¤(€€€Á±Ğ¹á±…‰•° ‰%µÁ½ÉÑ…¹”ˆ¤(€€€Á±Ğ¹Ñ¥¡Ñ}±…å½ÕĞ ¤(€€€Á±Ğ¹Í…Ù•™¥œ¡%}%}=UP°‘Á¤ôÄÔÀ¤(€€€Á±Ğ¹±½Í” ¤((€€€µ•Ñ…‘…Ñ„€ôì(€€€€€€€€‰Ñ…Í¬ˆè€‰A£‰¸±¿†ê…¤·Ô»†î¸‰§†î¸Ï†îDá”€ Ğ¹£Í´¤ˆ°(€€€€€€€€‰…±½É¥Ñ¡´ˆè€‰I…¹‘½µ½É•ÍÑ±…ÍÍ¥™¥•Èˆ°(€€€€€€€€‰±…ÍÍ•Ìˆè±¥ÍĞ¡µ½‘•°¹±…ÍÍ•Í|¤°(€€€€€€€€‰±…ÍÍ}±…‰•±Í}Ù¤ˆè=1=I}1	1M}Y$°(€€€€€€€€‰™•…ÑÕÉ•ÌˆèQUI}95L°(€€€€€€€€‰‘…Ñ…Í•Ñ}Í½ÕÉ•}½Õ¹ÑÌˆèÍ½ÕÉ•}½Õ¹ÑÌ°(€€€€€€€€‰Ñ•ÍÑ}µ•ÑÉ¥Ìˆèí­•äèÙ…±Õ”™½È­•ä°Ù…±Õ”¥¸µ•ÑÉ¥Ì¹¥Ñ•µÌ ¤¥˜­•ä¹½Ğ¥¸€ ‰É•Á½ÉĞˆ°€‰±…‰•±Ìˆ¥ô°(€€€€€€€€‰•Ù…±Õ…Ñ¥½¹}¹½Ñ”ˆè€ (€€€€€€€€€€€€‰;†êıÔÉ•…±}Í…µÁ±•Ì‹†êÅ¹œ€À°…Œ£†î$Ï†îDÑ•ÍĞ£†î$Á£†ê¸ƒ…¹ “†î¼±§†îÔÓ†îU¹œ£†îÀ°€ˆ(€€€€€€€€€€€€‰­£Ñ¹œƒG†ê…¤‘§†î¸¡¼ƒG†îd£µ¹ ã…ŒÑË©¸…µ•É„Ñ£†îÅŒÓ†êü¸ˆ(€€€€€€€€¤°(€€€ô(€€€5Q}=UP¹İÉ¥Ñ•}Ñ•áĞ¡©Í½¸¹‘ÕµÁÌ¡µ•Ñ…‘…Ñ„°•¹ÍÕÉ•}…Í¥¤õ…±Í”°¥¹‘•¹ĞôÈ¤°•¹½‘¥¹œô‰ÕÑ˜´àˆ¤(€€€ÁÉ¥¹Ğ¡˜ˆÔ¸!¿¸Ó†ê•Ğ„5½‘•°ƒGŒ³ÁÔÓ†ê…¤èí5=1}AQ!ôˆ¤(()¥˜}}¹…µ•}|€ôô€‰}}µ…¥¹}|ˆè(€€€µ…¥¸ ¤(
+def build_dataset(samples_per_class=250):
+    rng = random.Random(42)
+    X, y = [], []
+    counts = {"real":0, "synthetic":0}
+    for label in THEMES:
+        folder = ROOT / "data" / "labeled_plates" / label
+        if folder.is_dir():
+            for path in sorted(folder.glob("*")):
+                image = cv2.imread(str(path)) if path.is_file() else None
+                if image is not None:
+                    vector, _ = extract_plate_color_features(image)
+                    X.append(vector); y.append(label); counts["real"] += 1
+        for _ in range(samples_per_class):
+            vector, _ = extract_plate_color_features(generate_synthetic_plate(label,rng))
+            X.append(vector); y.append(label); counts["synthetic"] += 1
+    if not X:
+        raise RuntimeError("KhÃ´ng cÃ³ dá»¯ liá»‡u huáº¥n luyá»‡n.")
+    return pd.DataFrame(X,columns=FEATURE_NAMES), np.asarray(y), counts
+
+def main():
+    print("1. Táº¡o dá»¯ liá»‡u vÃ  trÃ­ch xuáº¥t 10 Ä‘áº·c trÆ°ng HSV...")
+    X,y,counts = build_dataset(250)
+    print(f"   áº¢nh tháº­t: {counts['real']} | áº£nh tá»•ng há»£p: {counts['synthetic']}")
+    X_train,X_test,y_train,y_test = split_train_test(X,y,0.2,42)
+    print("2. Huáº¥n luyá»‡n RandomForestClassifier...")
+    model = train_classification_model(X_train.values,y_train,42)
+    pred = model.predict(X_test.values)
+    metrics = evaluate_classification(y_test,pred)
+    print(f"Accuracy={metrics['accuracy']} | F1-macro={metrics['f1_macro']}")
+    print(metrics["report"])
+    for path in (MODEL_PATH,CSV_OUT,CM_FIG_OUT,FI_FIG_OUT,META_OUT):
+        path.parent.mkdir(parents=True,exist_ok=True)
+    joblib.dump(model,MODEL_PATH)
+    pd.DataFrame([{
+        "model":"RandomForestClassifier","n_estimators":120,"max_depth":12,
+        "train_samples":len(X_train),"test_samples":len(X_test),
+        "real_samples":counts["real"],"synthetic_samples":counts["synthetic"],
+        "accuracy":metrics["accuracy"],"precision_macro":metrics["precision_macro"],
+        "recall_macro":metrics["recall_macro"],"f1_macro":metrics["f1_macro"],
+    }]).to_csv(CSV_OUT,index=False)
+    labels = metrics["labels"]
+    plt.figure(figsize=(6,5))
+    sns.heatmap(np.asarray(metrics["confusion_matrix"]),annot=True,fmt="d",cmap="Blues",
+                xticklabels=labels,yticklabels=labels)
+    plt.title("Confusion Matrix - Random Forest (Plate Color)")
+    plt.xlabel("Predicted"); plt.ylabel("Actual"); plt.tight_layout()
+    plt.savefig(CM_FIG_OUT,dpi=150); plt.close()
+    importance = pd.Series(model.feature_importances_,index=FEATURE_NAMES).sort_values()
+    plt.figure(figsize=(7,4.5)); importance.plot(kind="barh")
+    plt.title("Feature Importance - Random Forest"); plt.xlabel("Importance")
+    plt.tight_layout(); plt.savefig(FI_FIG_OUT,dpi=150); plt.close()
+    metadata = {
+        "task":"PhÃ¢n loáº¡i mÃ u ná»n biá»ƒn sá»‘ xe (4 nhÃ³m)",
+        "algorithm":"RandomForestClassifier","classes":list(model.classes_),
+        "class_labels_vi":COLOR_LABELS_VI,"features":FEATURE_NAMES,
+        "dataset_source_counts":counts,
+        "test_metrics":{k:v for k,v in metrics.items() if k not in ("report","labels")},
+        "evaluation_note":"Náº¿u real_samples báº±ng 0, chá»‰ sá»‘ test pháº£n Ã¡nh dá»¯ liá»‡u tá»•ng há»£p, khÃ´ng Ä‘áº¡i diá»‡n Ä‘á»™ chÃ­nh xÃ¡c trÃªn camera thá»±c táº¿.",
+    }
+    META_OUT.write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")
+    print(f"ÄÃ£ lÆ°u mÃ´ hÃ¬nh: {MODEL_PATH}")
+
+if __name__ == "__main__":
+    main()

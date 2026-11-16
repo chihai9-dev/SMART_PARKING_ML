@@ -1,13 +1,8 @@
 """Các chỉ số đánh giá mô hình phân loại."""
 from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    confusion_matrix,
-    f1_score,
-    precision_score,
-    recall_score,
+    accuracy_score, classification_report, confusion_matrix,
+    f1_score, precision_score, recall_score,
 )
-
 
 def evaluate_classification(y_true, y_pred) -> dict:
     labels = sorted(set(y_true) | set(y_pred))
