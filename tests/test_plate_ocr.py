@@ -20,7 +20,6 @@ from src.vision.plate_ocr import (
     plates_match,
 )
 from src.vision.preprocess import load_image, preprocess_for_ocr
-from src.vision.vehicle_type import infer_vehicle_type_from_plate, vehicle_types_match
 
 
 class TestPlateNormalize(unittest.TestCase):
@@ -39,16 +38,6 @@ class TestPlateNormalize(unittest.TestCase):
     def test_plates_match(self):
         self.assertTrue(plates_match("59-B1 123.45", "59B112345"))
         self.assertFalse(plates_match("59B112345", "59B199999"))
-
-
-class TestVehicleType(unittest.TestCase):
-    def test_from_plate(self):
-        self.assertEqual(infer_vehicle_type_from_plate("59B112345"), "Motorbike")
-        self.assertEqual(infer_vehicle_type_from_plate("51A12345"), "Car")
-
-    def test_types_match(self):
-        self.assertTrue(vehicle_types_match("xe máy", "Motorbike"))
-        self.assertFalse(vehicle_types_match("Motorbike", "Car"))
 
 
 class TestAssembleAndDetect(unittest.TestCase):

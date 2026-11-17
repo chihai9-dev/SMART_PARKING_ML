@@ -256,7 +256,6 @@ export default function App() {
               setLastSavedScan({
                 scanId: Date.now(),
                 plate: scanRes.plate || rawPlate,
-                vehicleType: 'Vehicle',
                 confidence: scanRes.confidence || 0.95,
                 cropImagePath: scanRes.crop_path ? `/scan-image/${scanRes.crop_path.split(/[\\/]/).pop()}` : null,
                 scanTime: new Date().toISOString(),

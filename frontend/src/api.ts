@@ -1,7 +1,6 @@
 export type PlateScanDto = {
   scanId: number
   plate: string
-  vehicleType?: string | null
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
@@ -13,8 +12,6 @@ export type PlateScanDto = {
 export type PlateScanStats = {
   totalScans: number
   todayScans: number
-  motorbikes?: number
-  cars?: number
   averageConfidence: number
 }
 
@@ -27,7 +24,6 @@ export type PlatePreview = {
   message?: string
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
-  vehicle_type?: string
   bbox?: number[]
   [key: string]: unknown
 }
@@ -39,7 +35,6 @@ export type ScanResult = {
   confidence?: number
   engine?: string
   message?: string
-  vehicle_type?: string
   bbox?: number[]
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
@@ -53,22 +48,14 @@ export type ScanResult = {
 async function readResponse<T>(response: Response): Promise<T> {
   const text = await response.text()
   let body: unknown = {}
-
   if (text) {
-    try {
-      body = JSON.parse(text)
-    } catch {
-      body = { message: text }
-    }
+    try { body = JSON.parse(text) }
+    catch { body = { message: text } }
   }
-
   if (!response.ok) {
     const data = body as { message?: string; title?: string }
-    throw new Error(
-      data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').')
-    )
+    throw new Error(data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').'))
   }
-
   return body as T
 }
 
@@ -76,29 +63,20 @@ export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> 
   const url = search
     ? '/backend-api/PlateScans?search=' + encodeURIComponent(search)
     : '/backend-api/PlateScans'
-
-  const response = await fetch(url, {
-    headers: { Accept: 'application/json' },
-  })
-
+  const response = await fetch(url, { headers: { Accept: 'application/json' } })
   const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) {
-    throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
-  }
+  if (!Array.isArray(result)) throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
   return result as PlateScanDto[]
 }
 
 export async function fetchPlateScanStats(): Promise<PlateScanStats> {
-  const response = await fetch('/backend-api/PlateScans/stats', {
-    headers: { Accept: 'application/json' },
-  })
+  const response = await fetch('/backend-api/PlateScans/stats', { headers: { Accept: 'application/json' } })
   return readResponse<PlateScanStats>(response)
 }
 
 export async function deletePlateScan(id: number): Promise<void> {
   const response = await fetch('/backend-api/PlateScans/' + id, {
-    method: 'DELETE',
-    headers: { Accept: 'application/json' },
+    method: 'DELETE', headers: { Accept: 'application/json' },
   })
   await readResponse<unknown>(response)
 }
@@ -106,26 +84,19 @@ export async function deletePlateScan(id: number): Promise<void> {
 export async function scanPlate(image: Blob): Promise<ScanResult> {
   const form = new FormData()
   form.append('image', image, 'plate-upload.jpg')
-  const response = await fetch('/python-api/scan-plate', {
-    method: 'POST',
-    body: form,
-  })
+  const response = await fetch('/python-api/scan-plate', { method: 'POST', body: form })
   return readResponse<ScanResult>(response)
 }
 
 export async function previewPlate(image: Blob): Promise<PlatePreview> {
   const form = new FormData()
   form.append('image', image, 'camera-frame.jpg')
-  const response = await fetch('/python-api/preview-plate', {
-    method: 'POST',
-    body: form,
-  })
+  const response = await fetch('/python-api/preview-plate', { method: 'POST', body: form })
   return readResponse<PlatePreview>(response)
 }
 
 export async function createPlateScan(scan: {
   plate: string
-  vehicleType?: string | null
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
@@ -133,10 +104,7 @@ export async function createPlateScan(scan: {
 }): Promise<PlateScanDto> {
   const response = await fetch('/backend-api/PlateScans', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(scan),
   })
   return readResponse<PlateScanDto>(response)
