@@ -993,7 +993,7 @@ export default function App() {
                     <strong style={{ fontSize: 13, color: '#443859' }}>2. Bộ nhận dạng ký tự (Character OCR):</strong>
                     <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
                       • Mô hình: <strong>RapidOCR</strong> (PaddleOCR ONNX engine)
-                      <br />• Hỗ trợ: Biển số 1 dòng (ô tô) và biển số 2 dòng (xe máy, xe tải)
+                       <br />• Hỗ trợ nhận diện biển số bố cục 1 dòng và 2 dòng
                       <br />• Hậu xử lý: Regex chuẩn hóa ký tự tiếng Việt (loại bỏ nhiễu, nhầm lẫn O-0, I-1)
                     </div>
                   </div>

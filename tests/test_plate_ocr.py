@@ -41,14 +41,14 @@ class TestPlateNormalize(unittest.TestCase):
 
 
 class TestAssembleAndDetect(unittest.TestCase):
-    def test_two_line_motorbike_plate(self):
+    def test_two_line_plate(self):
         plate, _ = _assemble_from_items([("59-B1", 0.9), ("123.45", 0.8)])
         self.assertEqual(plate, "59B112345")
         self.assertTrue(is_valid_vn_plate(plate))
 
     def test_find_region_on_synthetic_plate(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-            path = render_plate_image("51A12345", "Car", Path(tmp) / "p.png")
+            path = render_plate_image("51A12345", "one_line", Path(tmp) / "p.png")
             image = load_image(str(path))
             regions = find_plate_regions(image)
             self.assertGreaterEqual(len(regions), 1)
@@ -58,7 +58,7 @@ class TestAssembleAndDetect(unittest.TestCase):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             path = render_plate_image(
                 "59B112345",
-                "Motorbike",
+                "two_line",
                 Path(tmp) / "p.png",
             )
             image = load_image(str(path))
