@@ -349,6 +349,8 @@ button:focus-visible, input:focus-visible {
   .search-box { width: 100%; }
   .settings-list > div { grid-template-columns: 1fr; gap: 6px; }
   .footer { flex-direction: column; }
+  .alpr-preview-grid { grid-template-columns: 1fr; }
+  .alpr-result-header { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 420px) {
   .sidebar { width: 54px; padding: 15px 5px; }
@@ -396,6 +398,45 @@ button:focus-visible, input:focus-visible {
 .recognition-result > div { min-width: 0; }
 .result-caption { display: block; margin-bottom: 5px; color: #888191; font-size: 10px; }
 .recognition-result strong { display: block; overflow-wrap: anywhere; color: #3b304d; font-size: 12px; }
+.plate-color-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid #e6e0ee;
+  border-radius: 7px;
+  background: #faf9fc;
+}
+.plate-color-summary-compact { padding: 10px; }
+.plate-color-swatch {
+  width: 42px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(47, 39, 61, .22);
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.plate-color-summary-compact .plate-color-swatch { width: 34px; height: 25px; }
+.plate-color-content { min-width: 0; flex: 1; }
+.plate-color-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.plate-color-heading strong { display: block; color: #393147; font-size: 12px; }
+.plate-color-confidence {
+  padding: 4px 7px;
+  border-radius: 20px;
+  color: #4e3b71;
+  background: #eee8f5;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.plate-color-probabilities { display: grid; gap: 5px; margin-top: 10px; }
+.plate-color-probability { display: grid; grid-template-columns: 43px minmax(40px, 1fr) 32px; align-items: center; gap: 7px; color: #777181; font-size: 10px; }
+.plate-color-probability > span:last-child { text-align: right; }
+.plate-color-track { height: 6px; overflow: hidden; border-radius: 5px; background: #e9e6ef; }
+.plate-color-track > span { display: block; height: 100%; border-radius: inherit; }
 .gate-submit { margin: 0 14px 15px; padding-top: 13px; border-top: 1px solid #efedf2; }
 .gate-submit .field-label { margin-top: 0; }
 .gate-submit .primary-button { margin-top: 12px; }

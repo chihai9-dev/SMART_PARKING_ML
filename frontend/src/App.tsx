@@ -6,7 +6,7 @@ import {
   previewPlate,
   scanPlate,
 } from './api'
-import type { PlatePreview, PlateScanDto, PlateScanStats, ScanResult } from './api'
+import type { PlateColorResult, PlatePreview, PlateScanDto, PlateScanStats, ScanResult } from './api'
 
 type MenuId = 'camera' | 'upload' | 'history' | 'dashboard' | 'settings'
 
@@ -21,11 +21,11 @@ const menuItems: { id: MenuId; icon: string; label: string }[] = [
 const pageDetails: Record<MenuId, { title: string; description: string }> = {
   camera: {
     title: 'Quét Camera trực tiếp',
-    description: 'Nhận diện biển số xe thời gian thực qua webcam bằng mô hình YOLOv8 và RapidOCR.',
+    description: 'Nhận diện biển số và phân loại màu nền theo thời gian thực qua webcam.',
   },
   upload: {
     title: 'Tải ảnh & Nhận diện',
-    description: 'Tải ảnh lên hệ thống, tự động khoanh vùng biển số, nhận dạng ký tự và lưu vào CSDL.',
+    description: 'Tải ảnh lên để khoanh vùng biển số, nhận dạng ký tự, phân loại màu nền và lưu kết quả.',
   },
   history: {
     title: 'Nhật ký nhận diện',
@@ -58,6 +58,66 @@ function formatDateTime(value?: string | null) {
 function formatPlateDisplay(plate: string) {
   if (!plate) return 'CHƯA RÕ'
   return plate.toUpperCase()
+}
+
+const plateColorStyles: Record<string, { background: string; foreground: string }> = {
+  White: { background: '#f1f1ee', foreground: '#393743' },
+  Yellow: { background: '#f1ce4d', foreground: '#39300d' },
+  Blue: { background: '#2364ae', foreground: '#ffffff' },
+  Red: { background: '#b73737', foreground: '#ffffff' },
+}
+
+function PlateColorSummary({ color, compact = false }: { color?: PlateColorResult; compact?: boolean }) {
+  if (!color) return null
+  const knownColor = color.color_code && color.color_code !== 'Unknown'
+  const swatch = plateColorStyles[color.color_code || '']
+  const probabilities = Object.entries(color.probabilities || {})
+    .filter(([, probability]) => Number.isFinite(probability))
+    .sort((a, b) => b[1] - a[1])
+
+  return (
+    <div className={`plate-color-summary${compact ? ' plate-color-summary-compact' : ''}`}>
+      <div
+        className="plate-color-swatch"
+        style={{
+          backgroundColor: swatch?.background || '#e9e6ef',
+          color: swatch?.foreground || '#514a5e',
+        }}
+        aria-hidden="true"
+      >
+        {knownColor ? 'Aa' : '?'}
+      </div>
+      <div className="plate-color-content">
+        <div className="plate-color-heading">
+          <div>
+            <span className="result-caption">Màu nền biển số</span>
+            <strong>{color.color_label || 'Chưa phân loại màu'}</strong>
+          </div>
+          {knownColor && typeof color.confidence === 'number' && (
+            <span className="plate-color-confidence">{(color.confidence * 100).toFixed(1)}%</span>
+          )}
+        </div>
+        {probabilities.length > 0 && (
+          <div className="plate-color-probabilities">
+            {probabilities.map(([code, probability]) => (
+              <div className="plate-color-probability" key={code}>
+                <span>{code}</span>
+                <div className="plate-color-track">
+                  <span
+                    style={{
+                      width: `${Math.max(0, Math.min(1, probability)) * 100}%`,
+                      backgroundColor: plateColorStyles[code]?.background || '#7865aa',
+                    }}
+                  />
+                </div>
+                <span>{(probability * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function App() {
@@ -256,8 +316,9 @@ export default function App() {
               setLastSavedScan({
                 scanId: Date.now(),
                 plate: scanRes.plate || rawPlate,
-                confidence: scanRes.confidence || 0.95,
+                confidence: scanRes.confidence ?? 0,
                 cropImagePath: scanRes.crop_path ? `/scan-image/${scanRes.crop_path.split(/[\\/]/).pop()}` : null,
+                plateColor: scanRes.plate_color,
                 scanTime: new Date().toISOString(),
                 note: 'Tự động quét từ Camera',
               })
@@ -296,7 +357,16 @@ export default function App() {
     try {
       const blob = await captureFrameBlob()
       const res = await scanPlate(blob)
-      setUploadResult(res)
+      setLatestPreview(res)
+      setLastSavedScan({
+        scanId: Date.now(),
+        plate: res.plate || '',
+        confidence: res.confidence ?? 0,
+        cropImagePath: res.crop_path ? `/scan-image/${res.crop_path.split(/[\\/]/).pop()}` : null,
+        plateColor: res.plate_color,
+        scanTime: new Date().toISOString(),
+        note: 'Chụp và nhận diện thủ công',
+      })
       setRefreshKey((k) => k + 1)
       setCameraStatus(`Đã nhận diện: ${res.plate || 'Không tìm thấy'} (${(Number(res.confidence || 0) * 100).toFixed(1)}%)`)
     } catch (err) {
@@ -537,32 +607,37 @@ export default function App() {
 
               {/* Preview kết quả nhận diện hiện tại */}
               {latestPreview && latestPreview.valid && latestPreview.plate && (
-                <div className="recognition-result">
-                  <div>
-                    <span className="result-caption">Biển số phát hiện</span>
-                    <div style={{ marginTop: 6 }}>
-                      <span className="plate-badge plate-badge-lg">
-                        {formatPlateDisplay(latestPreview.plate)}
-                      </span>
+                <>
+                  <div className="recognition-result">
+                    <div>
+                      <span className="result-caption">Biển số phát hiện</span>
+                      <div style={{ marginTop: 6 }}>
+                        <span className="plate-badge plate-badge-lg">
+                          {formatPlateDisplay(latestPreview.plate)}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="result-caption">Định dạng</span>
+                      <div style={{ marginTop: 8 }}>
+                        <span className="conf-pill conf-high">✓ Hợp lệ chuẩn VN</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="result-caption">Độ tin cậy</span>
+                      <div style={{ marginTop: 8 }}>
+                        <span className="conf-pill conf-high">
+                          {typeof latestPreview.confidence === 'number'
+                            ? (latestPreview.confidence * 100).toFixed(1) + '%'
+                            : '98%'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="result-caption">Định dạng</span>
-                    <div style={{ marginTop: 8 }}>
-                      <span className="conf-pill conf-high">✓ Hợp lệ chuẩn VN</span>
-                    </div>
+                  <div style={{ margin: '0 14px 12px' }}>
+                    <PlateColorSummary color={latestPreview.plate_color} compact />
                   </div>
-                  <div>
-                    <span className="result-caption">Độ tin cậy</span>
-                    <div style={{ marginTop: 8 }}>
-                      <span className="conf-pill conf-high">
-                        {typeof latestPreview.confidence === 'number'
-                          ? (latestPreview.confidence * 100).toFixed(1) + '%'
-                          : '98%'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                </>
               )}
             </section>
 
@@ -616,6 +691,7 @@ export default function App() {
                         <div><strong>Thời gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
                         <div><strong>Độ tin cậy:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
                       </div>
+                      <PlateColorSummary color={lastSavedScan.plateColor} compact />
                     </div>
                   ) : (
                     <div className="empty-state">Chưa có lượt quét mới nào trong phiên hiện tại.</div>
@@ -725,7 +801,7 @@ export default function App() {
                 <div className="alpr-result-card">
                   <div className="alpr-result-header">
                     <div>
-                      <strong style={{ fontSize: 16, color: '#302842' }}>Kết quả trích xuất</strong>
+                      <strong style={{ fontSize: 16, color: '#302842' }}>Kết quả nhận diện & phân loại màu</strong>
                       <div style={{ fontSize: 12, color: '#888096', marginTop: 3 }}>
                         Engine: {uploadResult.engine || 'YOLOv8 + RapidOCR'} · Đã lưu vào SQL Server
                       </div>
@@ -782,6 +858,8 @@ export default function App() {
                           <span style={{ color: '#8b849c', fontSize: 12 }}>Không có ảnh cắt</span>
                         )}
                       </div>
+
+                      <PlateColorSummary color={uploadResult.plate_color} />
 
                       {/* Chi tiết thông số */}
                       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>

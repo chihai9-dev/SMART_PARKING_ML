@@ -4,6 +4,7 @@ export type PlateScanDto = {
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
+  plateColor?: PlateColorResult
   scanTime: string
   note?: string | null
   createdAt?: string
@@ -15,11 +16,20 @@ export type PlateScanStats = {
   averageConfidence: number
 }
 
+export type PlateColorResult = {
+  color_code?: string
+  color_label?: string
+  confidence?: number
+  probabilities?: Record<string, number>
+  algorithm?: string
+}
+
 export type PlatePreview = {
   status?: string
   plate?: string
   valid?: boolean
   confidence?: number
+  plate_color?: PlateColorResult
   engine?: string
   message?: string
   crop_jpeg_b64?: string
@@ -33,6 +43,7 @@ export type ScanResult = {
   plate?: string
   valid?: boolean
   confidence?: number
+  plate_color?: PlateColorResult
   engine?: string
   message?: string
   bbox?: number[]
