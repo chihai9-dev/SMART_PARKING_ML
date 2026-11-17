@@ -21,7 +21,6 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.models.classification import load_color_model, predict_plate_color
 from src.vision.plate_ocr import normalize_plate, recognize_plate
-from src.vision.vehicle_type import infer_vehicle_type_from_plate
 
 
 app = Flask(__name__)
@@ -232,7 +231,6 @@ def scan_plate():
         ocr = recognize_plate(image_bytes)
         detected_plate = normalize_plate(ocr.get("plate") or "")
         plate_color = _classify_crop_b64(ocr.get("crop_jpeg_b64"))
-        vehicle_type = infer_vehicle_type_from_plate(detected_plate) or "Vehicle"
         color_label = plate_color.get("color_label") or "Chưa phân loại màu biển số"
 
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -256,7 +254,6 @@ def scan_plate():
             "source_filename": uploaded.filename,
             "image_path": str(image_path),
             "crop_path": crop_path,
-            "vehicle_type": vehicle_type,
             "plate_color": plate_color,
             "extra": {
                 "bbox": ocr.get("bbox"),
@@ -276,7 +273,6 @@ def scan_plate():
                     "/api/PlateScans",
                     payload={
                         "plate": detected_plate,
-                        "vehicleType": vehicle_type,
                         "confidence": float(ocr.get("confidence") or 1.0),
                         "imagePath": "/scan-image/{}".format(image_path.name),
                         "cropImagePath": (
@@ -304,7 +300,6 @@ def scan_plate():
                 "confidence": ocr.get("confidence"),
                 "engine": ocr.get("engine"),
                 "message": ocr.get("message"),
-                "vehicle_type": vehicle_type,
                 "plate_color": plate_color,
                 "raw_candidates": ocr.get("raw_candidates", []),
                 "bbox": ocr.get("bbox"),
@@ -377,7 +372,6 @@ def preview_plate():
         ocr = recognize_plate(image_bytes)
         plate = normalize_plate(ocr.get("plate") or "")
         plate_color = _classify_crop_b64(ocr.get("crop_jpeg_b64"))
-        vehicle_type = infer_vehicle_type_from_plate(plate)
 
         return jsonify(
             {
@@ -387,7 +381,6 @@ def preview_plate():
                 "confidence": ocr.get("confidence", 0),
                 "engine": ocr.get("engine", "none"),
                 "message": ocr.get("message", ""),
-                "vehicle_type": vehicle_type,
                 "plate_color": plate_color,
                 "bbox": ocr.get("bbox"),
                 "annotated_jpeg_b64": ocr.get("annotated_jpeg_b64"),
@@ -416,7 +409,7 @@ def list_scans():
 
 if __name__ == "__main__":
     print("==================================================")
-    print(" ALPR System - Nhận diện & Phân loại Biển số xe")
+    print(" ALPR System - Nhận diện biển số & phân loại màu")
     print(" YOLO/OCR + RandomForest Color Classifier + .NET API")
     print("==================================================")
     print("Backend: {}".format(SMARTPARKING_API_URL))
