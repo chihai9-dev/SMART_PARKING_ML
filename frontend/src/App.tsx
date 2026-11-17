@@ -60,6 +60,16 @@ function formatPlateDisplay(plate: string) {
   return plate.toUpperCase()
 }
 
+function getScanPlateColor(scan: PlateScanDto): PlateColorResult | undefined {
+  if (scan.plateColor) return scan.plateColor
+  if (!scan.plateColorCode && !scan.plateColorLabel) return undefined
+  return {
+    color_code: scan.plateColorCode || undefined,
+    color_label: scan.plateColorLabel || undefined,
+    confidence: scan.plateColorConfidence ?? undefined,
+  }
+}
+
 const plateColorStyles: Record<string, { background: string; foreground: string }> = {
   White: { background: '#f1f1ee', foreground: '#393743' },
   Yellow: { background: '#f1ce4d', foreground: '#39300d' },
@@ -421,14 +431,19 @@ export default function App() {
       return
     }
 
-    const headers = ['Mã quét', 'Biển số', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
-    const rows = scans.map((s) => [
-      s.scanId,
-      `"${s.plate}"`,
-      `"${(s.confidence * 100).toFixed(1)}%"`,
-      `"${formatDateTime(s.scanTime)}"`,
-      `"${s.note || ''}"`,
-    ])
+    const headers = ['Mã quét', 'Biển số', 'Màu biển', 'Độ tin cậy OCR', 'Độ tin cậy màu', 'Thời gian quét', 'Ghi chú']
+    const rows = scans.map((s) => {
+      const color = getScanPlateColor(s)
+      return [
+        s.scanId,
+        `"${s.plate}"`,
+        `"${color?.color_label || ''}"`,
+        `"${(s.confidence * 100).toFixed(1)}%"`,
+        `"${typeof color?.confidence === 'number' ? (color.confidence * 100).toFixed(1) + '%' : ''}"`,
+        `"${formatDateTime(s.scanTime)}"`,
+        `"${s.note || ''}"`,
+      ]
+    })
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -443,7 +458,11 @@ export default function App() {
   // Lọc danh sách lịch sử theo từ khóa tìm kiếm
   const filteredScans = scans.filter((s) => {
     const term = searchTerm.trim().toLowerCase()
-    return !term || s.plate.toLowerCase().includes(term) || (s.note || '').toLowerCase().includes(term)
+    const color = getScanPlateColor(s)
+    return !term || s.plate.toLowerCase().includes(term)
+      || (s.note || '').toLowerCase().includes(term)
+      || (color?.color_label || '').toLowerCase().includes(term)
+      || (color?.color_code || '').toLowerCase().includes(term)
   })
 
   const currentPage = pageDetails[activeMenu]
@@ -691,7 +710,7 @@ export default function App() {
                         <div><strong>Thời gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
                         <div><strong>Độ tin cậy:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
                       </div>
-                      <PlateColorSummary color={lastSavedScan.plateColor} compact />
+                      <PlateColorSummary color={getScanPlateColor(lastSavedScan)} compact />
                     </div>
                   ) : (
                     <div className="empty-state">Chưa có lượt quét mới nào trong phiên hiện tại.</div>
@@ -934,6 +953,7 @@ export default function App() {
                       <th style={{ width: 60 }}>#ID</th>
                       <th style={{ width: 80 }}>Ảnh cắt</th>
                       <th>Biển số xe</th>
+                      <th>Màu biển</th>
                       <th>Độ tin cậy</th>
                       <th>Thời gian nhận diện</th>
                       <th>Ghi chú</th>
@@ -966,6 +986,11 @@ export default function App() {
                           <span className="plate-badge plate-badge-sm">
                             {formatPlateDisplay(scan.plate)}
                           </span>
+                        </td>
+                        <td>
+                          {getScanPlateColor(scan) ? (
+                            <PlateColorSummary color={getScanPlateColor(scan)} compact />
+                          ) : '—'}
                         </td>
                         <td>
                           <span

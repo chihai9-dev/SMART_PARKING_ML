@@ -23,6 +23,9 @@ BEGIN
         Confidence FLOAT NOT NULL DEFAULT 1.0,
         ImagePath NVARCHAR(500) NULL,
         CropImagePath NVARCHAR(500) NULL,
+        PlateColorCode NVARCHAR(20) NULL,
+        PlateColorLabel NVARCHAR(100) NULL,
+        PlateColorConfidence FLOAT NULL,
         ScanTime DATETIME2 NOT NULL DEFAULT GETDATE(),
         Note NVARCHAR(200) NULL,
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
@@ -35,4 +38,12 @@ ELSE
 BEGIN
     PRINT N'Bang PlateScans da ton tai.';
 END
+GO
+
+IF COL_LENGTH(N'dbo.PlateScans', N'PlateColorCode') IS NULL
+    ALTER TABLE dbo.PlateScans ADD PlateColorCode NVARCHAR(20) NULL;
+IF COL_LENGTH(N'dbo.PlateScans', N'PlateColorLabel') IS NULL
+    ALTER TABLE dbo.PlateScans ADD PlateColorLabel NVARCHAR(100) NULL;
+IF COL_LENGTH(N'dbo.PlateScans', N'PlateColorConfidence') IS NULL
+    ALTER TABLE dbo.PlateScans ADD PlateColorConfidence FLOAT NULL;
 GO

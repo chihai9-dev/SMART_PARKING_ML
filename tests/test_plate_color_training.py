@@ -36,6 +36,23 @@ class TestPlateColorEvaluationSplit(unittest.TestCase):
         self.assertTrue((X_test.iloc[:, 0] == 1.0).all())
         self.assertTrue((X_train.iloc[:, 0] == 0.0).any())
 
+    def test_real_capture_groups_do_not_leak_between_train_and_test(self):
+        X, y, sources = self._dataset(real_per_class=2)
+        groups = np.asarray([
+            (f"capture-{i % 2}" if source == "real" else "")
+            for i, source in enumerate(sources)
+        ])
+        X_train, X_test, _, _, evaluation_source = split_color_dataset(
+            X, y, sources, groups, test_size=0.5, random_state=42
+        )
+
+        real_train_groups = set(groups[X_train.index.to_numpy()])
+        real_test_groups = set(groups[X_test.index.to_numpy()])
+        real_train_groups.discard("")
+        real_test_groups.discard("")
+        self.assertEqual(evaluation_source, "real")
+        self.assertTrue(real_train_groups.isdisjoint(real_test_groups))
+
     def test_synthetic_only_evaluation_is_labeled(self):
         X, y, sources = self._dataset(real_per_class=0)
         _, X_test, _, _, evaluation_source = split_color_dataset(

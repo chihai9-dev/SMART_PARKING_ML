@@ -29,13 +29,20 @@ public class PlateScanService : IPlateScanService
     {
         if (string.IsNullOrWhiteSpace(request.Plate))
             throw new ArgumentException("Biển số xe không được để trống.");
+        if (request.Confidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.Confidence), "Độ tin cậy phải nằm trong khoảng 0 đến 1.");
+        if (request.PlateColorConfidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.PlateColorConfidence), "Độ tin cậy màu phải nằm trong khoảng 0 đến 1.");
 
         var scan = new PlateScan
         {
             Plate = request.Plate.Trim().ToUpper(),
-            Confidence = request.Confidence > 0 ? request.Confidence : 1.0,
+            Confidence = request.Confidence ?? 1.0,
             ImagePath = request.ImagePath,
             CropImagePath = request.CropImagePath,
+            PlateColorCode = request.PlateColorCode,
+            PlateColorLabel = request.PlateColorLabel,
+            PlateColorConfidence = request.PlateColorConfidence,
             ScanTime = request.ScanTime ?? DateTime.Now,
             Note = request.Note,
             CreatedAt = DateTime.Now
@@ -71,6 +78,9 @@ public class PlateScanService : IPlateScanService
         Confidence = scan.Confidence,
         ImagePath = scan.ImagePath,
         CropImagePath = scan.CropImagePath,
+        PlateColorCode = scan.PlateColorCode,
+        PlateColorLabel = scan.PlateColorLabel,
+        PlateColorConfidence = scan.PlateColorConfidence,
         ScanTime = scan.ScanTime,
         Note = scan.Note,
         CreatedAt = scan.CreatedAt
