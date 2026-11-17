@@ -1,5 +1,6 @@
 """Random Forest phân loại màu nền biển số: White / Yellow / Blue / Red."""
 from __future__ import annotations
+import logging
 from pathlib import Path
 from typing import Any
 import joblib
@@ -9,6 +10,7 @@ from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 MODEL_PATH = ROOT_DIR / "models" / "classification" / "best_classification_model.pkl"
+LOGGER = logging.getLogger(__name__)
 COLOR_LABELS_VI = {
     "White": "Biển Trắng (Dân sự)",
     "Yellow": "Biển Vàng (Kinh doanh vận tải)",
@@ -36,7 +38,8 @@ def load_color_model(model_path: Path | str = MODEL_PATH) -> RandomForestClassif
                 or getattr(model, "n_features_in_", None) != len(FEATURE_NAMES)):
             return None
         return model
-    except (OSError, ValueError, EOFError, ImportError):
+    except (OSError, ValueError, EOFError, ImportError, KeyError) as exc:
+        LOGGER.warning("Ignoring unreadable plate color model %s: %s", path, exc)
         return None
 
 def predict_plate_color(model: RandomForestClassifier | None, crop_bgr: np.ndarray) -> dict[str, Any]:

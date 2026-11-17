@@ -32,8 +32,14 @@ class TestPlateNormalize(unittest.TestCase):
 
     def test_valid_vn_plate(self):
         self.assertTrue(is_valid_vn_plate("59B112345"))
+        self.assertTrue(is_valid_vn_plate("59B1123456"))
         self.assertTrue(is_valid_vn_plate("51A12345"))
         self.assertFalse(is_valid_vn_plate("XYZ"))
+
+    def test_preserves_alphanumeric_series_with_six_digit_number(self):
+        self.assertEqual(normalize_plate("59-B1 123.456"), "59B1123456")
+        self.assertEqual(normalize_plate("59BI123456"), "59B1123456")
+        self.assertTrue(plates_match("59-B1 123.456", "59B1123456"))
 
     def test_plates_match(self):
         self.assertTrue(plates_match("59-B1 123.45", "59B112345"))

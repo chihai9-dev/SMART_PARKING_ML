@@ -1,6 +1,7 @@
 """Huấn luyện Random Forest phân loại màu nền biển số Việt Nam."""
 from __future__ import annotations
 import json
+import math
 import random
 from pathlib import Path
 import cv2
@@ -16,6 +17,7 @@ from src.data.split_data import split_train_test
 from src.evaluation.metrics import evaluate_classification
 from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_features
 from src.models.classification import COLOR_LABELS_VI, MODEL_PATH, train_classification_model
+from sklearn.model_selection import train_test_split
 
 ROOT = Path(__file__).resolve().parent
 META_OUT = MODEL_PATH.parent / "model_metadata.json"
@@ -60,7 +62,7 @@ def generate_synthetic_plate(label, rng):
 
 def build_dataset(samples_per_class=250):
     rng = random.Random(42)
-    X, y = [], []
+    X, y, sources = [], [], []
     counts = {"real":0, "synthetic":0}
     for label in THEMES:
         folder = ROOT / "data" / "labeled_plates" / label
@@ -69,19 +71,73 @@ def build_dataset(samples_per_class=250):
                 image = cv2.imread(str(path)) if path.is_file() else None
                 if image is not None:
                     vector, _ = extract_plate_color_features(image)
-                    X.append(vector); y.append(label); counts["real"] += 1
+                    X.append(vector); y.append(label); sources.append("real"); counts["real"] += 1
         for _ in range(samples_per_class):
             vector, _ = extract_plate_color_features(generate_synthetic_plate(label,rng))
-            X.append(vector); y.append(label); counts["synthetic"] += 1
+            X.append(vector); y.append(label); sources.append("synthetic"); counts["synthetic"] += 1
     if not X:
         raise RuntimeError("Không có dữ liệu huấn luyện.")
-    return pd.DataFrame(X,columns=FEATURE_NAMES), np.asarray(y), counts
+    return pd.DataFrame(X,columns=FEATURE_NAMES), np.asarray(y), np.asarray(sources), counts
+
+def split_color_dataset(X, y, sources, test_size=0.2, random_state=42):
+    """Keep real images out of training when they are used for evaluation."""
+    sources = np.asarray(sources)
+    y = np.asarray(y)
+    if len(X) != len(y) or len(y) != len(sources):
+        raise ValueError("X, y và sources phải có cùng số lượng mẫu.")
+    if not len(y):
+        raise ValueError("Không có dữ liệu để chia.")
+    if not set(sources).issubset({"real", "synthetic"}):
+        raise ValueError("Nguồn dữ liệu phải là 'real' hoặc 'synthetic'.")
+
+    real_indices = np.flatnonzero(sources == "real")
+    synthetic_indices = np.flatnonzero(sources == "synthetic")
+    if len(real_indices):
+        real_X = X.iloc[real_indices]
+        real_y = y[real_indices]
+        if len(real_indices) > 1:
+            class_counts = pd.Series(real_y).value_counts()
+            test_count = math.ceil(test_size * len(real_indices))
+            train_count = len(real_indices) - test_count
+            stratify = (
+                real_y
+                if class_counts.min() >= 2
+                and test_count >= len(class_counts)
+                and train_count >= len(class_counts)
+                else None
+            )
+            X_real_train, X_test, y_real_train, y_test = train_test_split(
+                real_X,
+                real_y,
+                test_size=test_size,
+                random_state=random_state,
+                stratify=stratify,
+            )
+        else:
+            X_real_train = X.iloc[0:0]
+            y_real_train = np.asarray([], dtype=y.dtype)
+            X_test, y_test = real_X, real_y
+
+        X_train = pd.concat([X.iloc[synthetic_indices], X_real_train])
+        y_train = np.concatenate([y[synthetic_indices], y_real_train])
+        return X_train, X_test, y_train, y_test, "real"
+
+    X_train, X_test, y_train, y_test = split_train_test(
+        X, y, test_size=test_size, random_state=random_state
+    )
+    return X_train, X_test, y_train, y_test, "synthetic_only"
 
 def main():
     print("1. Tạo dữ liệu và trích xuất 10 đặc trưng HSV...")
-    X,y,counts = build_dataset(250)
+    X,y,sources,counts = build_dataset(250)
     print(f"   Ảnh thật: {counts['real']} | ảnh tổng hợp: {counts['synthetic']}")
-    X_train,X_test,y_train,y_test = split_train_test(X,y,0.2,42)
+    X_train,X_test,y_train,y_test,evaluation_source = split_color_dataset(
+        X,y,sources,0.2,42
+    )
+    test_sources = sources[X_test.index.to_numpy()]
+    test_real_samples = int(np.count_nonzero(test_sources == "real"))
+    test_synthetic_samples = int(np.count_nonzero(test_sources == "synthetic"))
+    print(f"   Nguồn đánh giá: {'dữ liệu thật' if evaluation_source == 'real' else 'chỉ dữ liệu tổng hợp'}")
     print("2. Huấn luyện RandomForestClassifier...")
     model = train_classification_model(X_train.values,y_train,42)
     pred = model.predict(X_test.values)
@@ -95,6 +151,9 @@ def main():
         "model":"RandomForestClassifier","n_estimators":120,"max_depth":12,
         "train_samples":len(X_train),"test_samples":len(X_test),
         "real_samples":counts["real"],"synthetic_samples":counts["synthetic"],
+        "evaluation_source":evaluation_source,
+        "test_real_samples":test_real_samples,
+        "test_synthetic_samples":test_synthetic_samples,
         "accuracy":metrics["accuracy"],"precision_macro":metrics["precision_macro"],
         "recall_macro":metrics["recall_macro"],"f1_macro":metrics["f1_macro"],
     }]).to_csv(CSV_OUT,index=False)
@@ -102,7 +161,7 @@ def main():
     plt.figure(figsize=(6,5))
     sns.heatmap(np.asarray(metrics["confusion_matrix"]),annot=True,fmt="d",cmap="Blues",
                 xticklabels=labels,yticklabels=labels)
-    plt.title("Confusion Matrix - Random Forest (Plate Color)")
+    plt.title(f"Confusion Matrix - Random Forest ({evaluation_source})")
     plt.xlabel("Predicted"); plt.ylabel("Actual"); plt.tight_layout()
     plt.savefig(CM_FIG_OUT,dpi=150); plt.close()
     importance = pd.Series(model.feature_importances_,index=FEATURE_NAMES).sort_values()
@@ -114,8 +173,17 @@ def main():
         "algorithm":"RandomForestClassifier","classes":list(model.classes_),
         "class_labels_vi":COLOR_LABELS_VI,"features":FEATURE_NAMES,
         "dataset_source_counts":counts,
+        "evaluation_source":evaluation_source,
+        "evaluation_sample_counts":{
+            "real":test_real_samples,
+            "synthetic":test_synthetic_samples,
+        },
+        "evaluation_note":(
+            "Chỉ số tính trên ảnh thật đã gán nhãn; synthetic chỉ tham gia huấn luyện."
+            if evaluation_source == "real"
+            else "Chỉ số chỉ phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế."
+        ),
         "test_metrics":{k:v for k,v in metrics.items() if k not in ("report","labels")},
-        "evaluation_note":"Nếu real_samples bằng 0, chỉ số test phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế.",
     }
     META_OUT.write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")
     print(f"Đã lưu mô hình: {MODEL_PATH}")

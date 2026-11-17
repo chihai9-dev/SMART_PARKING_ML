@@ -136,6 +136,11 @@ def _backend_error_response(exc: BackendApiError):
     ), status_code
 
 
+def _confidence_for_backend(ocr: dict) -> float:
+    confidence = ocr.get("confidence")
+    return float(1.0 if confidence is None else confidence)
+
+
 _scan_history = []
 
 
@@ -273,7 +278,7 @@ def scan_plate():
                     "/api/PlateScans",
                     payload={
                         "plate": detected_plate,
-                        "confidence": float(ocr.get("confidence") or 1.0),
+                        "confidence": _confidence_for_backend(ocr),
                         "imagePath": "/scan-image/{}".format(image_path.name),
                         "cropImagePath": (
                             "/scan-image/{}".format(Path(crop_path).name)

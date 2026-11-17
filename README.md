@@ -56,7 +56,7 @@ Sau đó chạy:
 python train_plate_color.py
 ```
 
-Mô hình được lưu tại `models/classification/best_classification_model.pkl`. Kết quả đánh giá và biểu đồ được lưu trong thư mục `outputs/`.
+Mô hình được lưu tại `models/classification/best_classification_model.pkl`. Kết quả đánh giá và biểu đồ được lưu trong thư mục `outputs/`. Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để báo cáo chất lượng; ảnh tổng hợp chỉ được dùng để huấn luyện. Nếu chưa có ảnh thật, metadata ghi rõ kết quả chỉ là đánh giá trên dữ liệu tổng hợp và không đại diện cho hiệu năng camera.
 
 Lưu ý: nếu chưa có ảnh thật đã gán nhãn, chương trình có thể tạo dữ liệu tổng hợp để kiểm tra pipeline. Kết quả đánh giá trên dữ liệu tổng hợp không đại diện cho độ chính xác khi chạy camera thực tế.
 

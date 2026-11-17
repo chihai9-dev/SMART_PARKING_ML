@@ -1,0 +1,70 @@
+{
+  "task": "Phân loại màu nền biển số xe (4 nhóm)",
+  "algorithm": "RandomForestClassifier",
+  "classes": [
+    "Blue",
+    "Red",
+    "White",
+    "Yellow"
+  ],
+  "class_labels_vi": {
+    "White": "Biển Trắng (Dân sự)",
+    "Yellow": "Biển Vàng (Kinh doanh vận tải)",
+    "Blue": "Biển Xanh (Cơ quan Nhà nước)",
+    "Red": "Biển Đỏ (Quân đội)"
+  },
+  "features": [
+    "white_ratio",
+    "yellow_ratio",
+    "blue_ratio",
+    "red_ratio",
+    "mean_hue",
+    "mean_sat",
+    "mean_val",
+    "std_val",
+    "dark_pixel_ratio",
+    "bright_pixel_ratio"
+  ],
+  "dataset_source_counts": {
+    "real": 0,
+    "synthetic": 1000
+  },
+  "evaluation_source": "synthetic_only",
+  "evaluation_sample_counts": {
+    "real": 0,
+    "synthetic": 200
+  },
+  "evaluation_note": "Chỉ số chỉ phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế.",
+  "test_metrics": {
+    "accuracy": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "confusion_matrix": [
+      [
+        50,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        50,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        50,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        50
+      ]
+    ]
+  }
+}

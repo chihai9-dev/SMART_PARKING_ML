@@ -1,0 +1,2 @@
+model,n_estimators,max_depth,train_samples,test_samples,real_samples,synthetic_samples,evaluation_source,test_real_samples,test_synthetic_samples,accuracy,precision_macro,recall_macro,f1_macro
+RandomForestClassifier,120,12,800,200,0,1000,synthetic_only,0,200,1.0,1.0,1.0,1.0
