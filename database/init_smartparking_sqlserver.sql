@@ -26,6 +26,7 @@ BEGIN
         PlateColorCode NVARCHAR(20) NULL,
         PlateColorLabel NVARCHAR(100) NULL,
         PlateColorConfidence FLOAT NULL,
+        ColorCode NVARCHAR(20) NULL,
         ScanTime DATETIME2 NOT NULL DEFAULT GETDATE(),
         Note NVARCHAR(200) NULL,
         CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
@@ -40,6 +41,8 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH(N'dbo.PlateScans', N'ColorCode') IS NULL
+    ALTER TABLE dbo.PlateScans ADD ColorCode NVARCHAR(20) NULL;
 IF COL_LENGTH(N'dbo.PlateScans', N'PlateColorCode') IS NULL
     ALTER TABLE dbo.PlateScans ADD PlateColorCode NVARCHAR(20) NULL;
 IF COL_LENGTH(N'dbo.PlateScans', N'PlateColorLabel') IS NULL
