@@ -285,6 +285,21 @@ def scan_plate():
                             if crop_path
                             else None
                         ),
+                        "plateColorCode": (
+                            plate_color.get("color_code")
+                            if plate_color.get("color_code") != "Unknown"
+                            else None
+                        ),
+                        "plateColorLabel": (
+                            plate_color.get("color_label")
+                            if plate_color.get("color_code") != "Unknown"
+                            else None
+                        ),
+                        "plateColorConfidence": (
+                            plate_color.get("confidence")
+                            if plate_color.get("color_code") != "Unknown"
+                            else None
+                        ),
                         "note": "{} | {}".format(ocr.get("engine") or "Plate OCR", color_label),
                     },
                 )

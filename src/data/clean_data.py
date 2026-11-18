@@ -12,11 +12,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.vision.plate_ocr import normalize_plate
-from src.vision.vehicle_type import canonicalize_vehicle_type
 
 
 def clean_parking_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Làm sạch dữ liệu thô: thời gian, ngoại lai, biển số, loại xe."""
+    """Làm sạch dữ liệu thô: thời gian, ngoại lai và biển số."""
     out = df.copy()
 
     if "student_id" in out.columns:
@@ -37,9 +36,6 @@ def clean_parking_data(df: pd.DataFrame) -> pd.DataFrame:
         else:
             out["duration_minutes"] = computed
         out["duration_minutes"] = out["duration_minutes"].clip(lower=1, upper=7 * 24 * 60)
-
-    if "vehicle_type" in out.columns:
-        out["vehicle_type"] = out["vehicle_type"].map(canonicalize_vehicle_type)
 
     if "license_plate" in out.columns:
         out["license_plate"] = out["license_plate"].map(normalize_plate)

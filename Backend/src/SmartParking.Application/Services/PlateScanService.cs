@@ -28,17 +28,28 @@ public class PlateScanService : IPlateScanService
     public async Task<PlateScanResponse> CreateAsync(CreatePlateScanRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Plate))
-            throw new ArgumentException("Bien so xe khong duoc de trong.");
+            throw new ArgumentException("Biển số xe không được để trống.");
+        if (request.Confidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.Confidence), "Độ tin cậy phải nằm trong khoảng 0 đến 1.");
+        if (request.PlateColorConfidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.PlateColorConfidence), "Độ tin cậy màu phải nằm trong khoảng 0 đến 1.");
+
+        var effectiveColorCode = !string.IsNullOrWhiteSpace(request.ColorCode)
+            ? request.ColorCode.Trim()
+            : (!string.IsNullOrWhiteSpace(request.PlateColorCode) ? request.PlateColorCode.Trim() : null);
 
         var scan = new PlateScan
         {
             Plate = request.Plate.Trim().ToUpper(),
-            Confidence = request.Confidence > 0 ? request.Confidence : 1.0,
+            Confidence = request.Confidence ?? 1.0,
             ImagePath = request.ImagePath,
             CropImagePath = request.CropImagePath,
+            PlateColorCode = request.PlateColorCode ?? effectiveColorCode,
+            PlateColorLabel = request.PlateColorLabel,
+            PlateColorConfidence = request.PlateColorConfidence,
             ScanTime = request.ScanTime ?? DateTime.Now,
             Note = request.Note,
-            ColorCode = string.IsNullOrWhiteSpace(request.ColorCode) ? null : request.ColorCode.Trim(),
+            ColorCode = effectiveColorCode,
             CreatedAt = DateTime.Now
         };
 
@@ -72,9 +83,12 @@ public class PlateScanService : IPlateScanService
         Confidence = scan.Confidence,
         ImagePath = scan.ImagePath,
         CropImagePath = scan.CropImagePath,
+        PlateColorCode = scan.PlateColorCode ?? scan.ColorCode,
+        PlateColorLabel = scan.PlateColorLabel,
+        PlateColorConfidence = scan.PlateColorConfidence,
         ScanTime = scan.ScanTime,
         Note = scan.Note,
-        ColorCode = scan.ColorCode,
+        ColorCode = scan.ColorCode ?? scan.PlateColorCode,
         CreatedAt = scan.CreatedAt
     };
 }

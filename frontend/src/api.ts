@@ -4,6 +4,10 @@ export type PlateScanDto = {
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
+  plateColor?: PlateColorResult
+  plateColorCode?: string | null
+  plateColorLabel?: string | null
+  plateColorConfidence?: number | null
   scanTime: string
   note?: string | null
   colorCode?: string | null

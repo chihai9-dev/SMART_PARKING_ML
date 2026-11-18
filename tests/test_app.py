@@ -1,8 +1,10 @@
 from io import BytesIO
 import random
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -36,6 +38,38 @@ class TestBackendConfidence(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["color_code"], "Yellow")
+
+    def test_scan_persists_structured_color_and_zero_confidence(self):
+        color = {
+            "color_code": "Yellow",
+            "color_label": "Biển Vàng",
+            "confidence": 0.87,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                patch("app.app.SCAN_DIR", Path(tmp)),
+                patch("app.app.recognize_plate", return_value={
+                    "plate": "51A12345",
+                    "valid": True,
+                    "confidence": 0.0,
+                    "engine": "test",
+                    "bbox": [0, 0, 10, 10],
+                }),
+                patch("app.app._classify_crop_b64", return_value=color),
+                patch("app.app._backend_request", return_value={}) as backend_request,
+            ):
+                response = app.test_client().post(
+                    "/api/scan-plate",
+                    data={"image": (BytesIO(b"image-bytes"), "plate.jpg")},
+                    content_type="multipart/form-data",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        payload = backend_request.call_args.kwargs["payload"]
+        self.assertEqual(payload["confidence"], 0.0)
+        self.assertEqual(payload["plateColorCode"], "Yellow")
+        self.assertEqual(payload["plateColorLabel"], "Biển Vàng")
+        self.assertEqual(payload["plateColorConfidence"], 0.87)
 
 
 if __name__ == "__main__":

@@ -29,12 +29,30 @@
     "real": 0,
     "synthetic": 1000
   },
+  "real_capture_groups": 0,
   "evaluation_source": "synthetic_only",
   "evaluation_sample_counts": {
     "real": 0,
     "synthetic": 200
   },
   "evaluation_note": "Chỉ số chỉ phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế.",
+  "model_version": "a942be50870d09f9",
+  "model_sha256": "a942be50870d09f9767637043018c14ec079b0c25bdb811c9473b2c4b349b2d3",
+  "created_at_utc": "2026-11-17T18:16:49.821797+00:00",
+  "feature_schema_version": "plate-color-hsv-v1",
+  "training_config": {
+    "n_estimators": 120,
+    "max_depth": 12,
+    "min_samples_split": 4,
+    "class_weight": "balanced",
+    "random_state": 42,
+    "synthetic_samples_per_class": 250
+  },
+  "runtime": {
+    "python": "3.15.0",
+    "scikit_learn": "1.9.1"
+  },
+  "confidence_calibration": "uncalibrated_random_forest_probabilities",
   "test_metrics": {
     "accuracy": 1.0,
     "precision_macro": 1.0,

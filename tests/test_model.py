@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import numpy as np
+from sklearn.tree import DecisionTreeClassifier
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -12,8 +13,23 @@ from src.models.classification import (
     predict_plate_color,
     train_classification_model,
 )
+from src.models.tuning import tune_model
 
 class TestModel(unittest.TestCase):
+    def test_tune_model_returns_fitted_best_estimator(self):
+        X = np.array([[0.0], [0.1], [0.2], [1.0], [1.1], [1.2], [2.0], [2.1], [2.2]])
+        y = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
+        model = tune_model(
+            DecisionTreeClassifier(random_state=42),
+            {"max_depth": [1, 2, 3]},
+            X,
+            y,
+            cv=3,
+            n_jobs=1,
+        )
+
+        np.testing.assert_array_equal(model.predict(X), y)
+
     def test_saved_color_model_loads(self):
         model = load_color_model()
         self.assertIsNotNone(model)

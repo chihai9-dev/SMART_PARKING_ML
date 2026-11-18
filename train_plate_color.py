@@ -1,8 +1,10 @@
 """Huấn luyện Random Forest phân loại màu nền biển số Việt Nam."""
 from __future__ import annotations
 import json
-import math
+import hashlib
+import platform
 import random
+from datetime import datetime, timezone
 from pathlib import Path
 import cv2
 import joblib
@@ -12,12 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import sklearn
 from PIL import Image, ImageDraw, ImageFont
 from src.data.split_data import split_train_test
 from src.evaluation.metrics import evaluate_classification
 from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_features
 from src.models.classification import COLOR_LABELS_VI, MODEL_PATH, train_classification_model
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit
 
 ROOT = Path(__file__).resolve().parent
 META_OUT = MODEL_PATH.parent / "model_metadata.json"
@@ -62,29 +65,33 @@ def generate_synthetic_plate(label, rng):
 
 def build_dataset(samples_per_class=250):
     rng = random.Random(42)
-    X, y, sources = [], [], []
+    X, y, sources, groups = [], [], [], []
     counts = {"real":0, "synthetic":0}
     for label in THEMES:
         folder = ROOT / "data" / "labeled_plates" / label
         if folder.is_dir():
-            for path in sorted(folder.glob("*")):
+            for path in sorted(folder.rglob("*")):
                 image = cv2.imread(str(path)) if path.is_file() else None
                 if image is not None:
                     vector, _ = extract_plate_color_features(image)
-                    X.append(vector); y.append(label); sources.append("real"); counts["real"] += 1
+                    group = str(path.parent.relative_to(folder))
+                    if group == ".":
+                        group = "ungrouped"
+                    X.append(vector); y.append(label); sources.append("real"); groups.append(group); counts["real"] += 1
         for _ in range(samples_per_class):
             vector, _ = extract_plate_color_features(generate_synthetic_plate(label,rng))
-            X.append(vector); y.append(label); sources.append("synthetic"); counts["synthetic"] += 1
+            X.append(vector); y.append(label); sources.append("synthetic"); groups.append(""); counts["synthetic"] += 1
     if not X:
         raise RuntimeError("Không có dữ liệu huấn luyện.")
-    return pd.DataFrame(X,columns=FEATURE_NAMES), np.asarray(y), np.asarray(sources), counts
+    return pd.DataFrame(X,columns=FEATURE_NAMES), np.asarray(y), np.asarray(sources), np.asarray(groups), counts
 
-def split_color_dataset(X, y, sources, test_size=0.2, random_state=42):
-    """Keep real images out of training when they are used for evaluation."""
+def split_color_dataset(X, y, sources, groups=None, test_size=0.2, random_state=42):
+    """Keep real capture groups out of training when they are used for evaluation."""
     sources = np.asarray(sources)
     y = np.asarray(y)
-    if len(X) != len(y) or len(y) != len(sources):
-        raise ValueError("X, y và sources phải có cùng số lượng mẫu.")
+    groups = np.arange(len(y)) if groups is None else np.asarray(groups)
+    if len(X) != len(y) or len(y) != len(sources) or len(y) != len(groups):
+        raise ValueError("X, y, sources và groups phải có cùng số lượng mẫu.")
     if not len(y):
         raise ValueError("Không có dữ liệu để chia.")
     if not set(sources).issubset({"real", "synthetic"}):
@@ -95,24 +102,20 @@ def split_color_dataset(X, y, sources, test_size=0.2, random_state=42):
     if len(real_indices):
         real_X = X.iloc[real_indices]
         real_y = y[real_indices]
-        if len(real_indices) > 1:
-            class_counts = pd.Series(real_y).value_counts()
-            test_count = math.ceil(test_size * len(real_indices))
-            train_count = len(real_indices) - test_count
-            stratify = (
-                real_y
-                if class_counts.min() >= 2
-                and test_count >= len(class_counts)
-                and train_count >= len(class_counts)
-                else None
-            )
-            X_real_train, X_test, y_real_train, y_test = train_test_split(
-                real_X,
-                real_y,
+        real_groups = groups[real_indices]
+        if len(np.unique(real_groups)) > 1:
+            splitter = GroupShuffleSplit(
+                n_splits=1,
                 test_size=test_size,
                 random_state=random_state,
-                stratify=stratify,
             )
+            train_positions, test_positions = next(
+                splitter.split(real_X, real_y, groups=real_groups)
+            )
+            X_real_train = real_X.iloc[train_positions]
+            X_test = real_X.iloc[test_positions]
+            y_real_train = real_y[train_positions]
+            y_test = real_y[test_positions]
         else:
             X_real_train = X.iloc[0:0]
             y_real_train = np.asarray([], dtype=y.dtype)
@@ -129,10 +132,10 @@ def split_color_dataset(X, y, sources, test_size=0.2, random_state=42):
 
 def main():
     print("1. Tạo dữ liệu và trích xuất 10 đặc trưng HSV...")
-    X,y,sources,counts = build_dataset(250)
+    X,y,sources,groups,counts = build_dataset(250)
     print(f"   Ảnh thật: {counts['real']} | ảnh tổng hợp: {counts['synthetic']}")
     X_train,X_test,y_train,y_test,evaluation_source = split_color_dataset(
-        X,y,sources,0.2,42
+        X,y,sources,groups,test_size=0.2,random_state=42
     )
     test_sources = sources[X_test.index.to_numpy()]
     test_real_samples = int(np.count_nonzero(test_sources == "real"))
@@ -147,6 +150,7 @@ def main():
     for path in (MODEL_PATH,CSV_OUT,CM_FIG_OUT,FI_FIG_OUT,META_OUT):
         path.parent.mkdir(parents=True,exist_ok=True)
     joblib.dump(model,MODEL_PATH)
+    artifact_sha256 = hashlib.sha256(MODEL_PATH.read_bytes()).hexdigest()
     pd.DataFrame([{
         "model":"RandomForestClassifier","n_estimators":120,"max_depth":12,
         "train_samples":len(X_train),"test_samples":len(X_test),
@@ -154,6 +158,8 @@ def main():
         "evaluation_source":evaluation_source,
         "test_real_samples":test_real_samples,
         "test_synthetic_samples":test_synthetic_samples,
+        "model_version":artifact_sha256[:16],
+        "model_sha256":artifact_sha256,
         "accuracy":metrics["accuracy"],"precision_macro":metrics["precision_macro"],
         "recall_macro":metrics["recall_macro"],"f1_macro":metrics["f1_macro"],
     }]).to_csv(CSV_OUT,index=False)
@@ -173,16 +179,34 @@ def main():
         "algorithm":"RandomForestClassifier","classes":list(model.classes_),
         "class_labels_vi":COLOR_LABELS_VI,"features":FEATURE_NAMES,
         "dataset_source_counts":counts,
+        "real_capture_groups":int(len(set(groups[sources == "real"]))),
         "evaluation_source":evaluation_source,
         "evaluation_sample_counts":{
             "real":test_real_samples,
             "synthetic":test_synthetic_samples,
         },
         "evaluation_note":(
-            "Chỉ số tính trên ảnh thật đã gán nhãn; synthetic chỉ tham gia huấn luyện."
+            "Chỉ số tính trên các capture group ảnh thật đã giữ riêng; synthetic chỉ tham gia huấn luyện."
             if evaluation_source == "real"
             else "Chỉ số chỉ phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế."
         ),
+        "model_version":artifact_sha256[:16],
+        "model_sha256":artifact_sha256,
+        "created_at_utc":datetime.now(timezone.utc).isoformat(),
+        "feature_schema_version":"plate-color-hsv-v1",
+        "training_config":{
+            "n_estimators":120,
+            "max_depth":12,
+            "min_samples_split":4,
+            "class_weight":"balanced",
+            "random_state":42,
+            "synthetic_samples_per_class":250,
+        },
+        "runtime":{
+            "python":platform.python_version(),
+            "scikit_learn":sklearn.__version__,
+        },
+        "confidence_calibration":"uncalibrated_random_forest_probabilities",
         "test_metrics":{k:v for k,v in metrics.items() if k not in ("report","labels")},
     }
     META_OUT.write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")

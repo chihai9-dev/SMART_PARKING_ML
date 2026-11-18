@@ -18,6 +18,7 @@ public class PlateScanRepository : IPlateScanRepository
     {
         string sql = """
             SELECT ScanId, Plate, Confidence, ImagePath, CropImagePath,
+                   PlateColorCode, PlateColorLabel, PlateColorConfidence,
                    ScanTime, Note, ColorCode, CreatedAt
             FROM PlateScans
             """;
@@ -34,6 +35,7 @@ public class PlateScanRepository : IPlateScanRepository
     {
         const string sql = """
             SELECT ScanId, Plate, Confidence, ImagePath, CropImagePath,
+                   PlateColorCode, PlateColorLabel, PlateColorConfidence,
                    ScanTime, Note, ColorCode, CreatedAt
             FROM PlateScans
             WHERE ScanId = @Id;
@@ -46,10 +48,14 @@ public class PlateScanRepository : IPlateScanRepository
     {
         const string sql = """
             INSERT INTO PlateScans
-                (Plate, Confidence, ImagePath, CropImagePath, ScanTime, Note, ColorCode, CreatedAt)
+                (Plate, Confidence, ImagePath, CropImagePath,
+                 PlateColorCode, PlateColorLabel, PlateColorConfidence,
+                 ScanTime, Note, ColorCode, CreatedAt)
             OUTPUT INSERTED.ScanId
             VALUES
-                (@Plate, @Confidence, @ImagePath, @CropImagePath, @ScanTime, @Note, @ColorCode, @CreatedAt);
+                (@Plate, @Confidence, @ImagePath, @CropImagePath,
+                 @PlateColorCode, @PlateColorLabel, @PlateColorConfidence,
+                 @ScanTime, @Note, @ColorCode, @CreatedAt);
             """;
         using var db = _factory.CreateConnection();
         return await db.ExecuteScalarAsync<long>(sql, scan);

@@ -41,6 +41,8 @@ Mở `database/init_smartparking_sqlserver.sql` trong SSMS và chạy để tạ
 
 Nếu database đã được tạo từ phiên bản cũ, chạy thêm một lần file `database/migrations/20261117_remove_vehicle_type.sql` để xóa cột VehicleType không còn sử dụng.
 
+Để cập nhật database hiện có cho lịch sử màu biển số, chạy `database/migrations/20261118_add_plate_color.sql`.
+
 ## 4. Huấn luyện mô hình phân loại màu biển số
 
 Đặt ảnh biển số đã gán nhãn vào các thư mục:
@@ -59,6 +61,8 @@ python train_plate_color.py
 Mô hình được lưu tại `models/classification/best_classification_model.pkl`. Kết quả đánh giá và biểu đồ được lưu trong thư mục `outputs/`. Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để báo cáo chất lượng; ảnh tổng hợp chỉ được dùng để huấn luyện. Nếu chưa có ảnh thật, metadata ghi rõ kết quả chỉ là đánh giá trên dữ liệu tổng hợp và không đại diện cho hiệu năng camera.
 
 Lưu ý: nếu chưa có ảnh thật đã gán nhãn, chương trình có thể tạo dữ liệu tổng hợp để kiểm tra pipeline. Kết quả đánh giá trên dữ liệu tổng hợp không đại diện cho độ chính xác khi chạy camera thực tế.
+
+Hướng dẫn tổ chức dữ liệu theo phiên chụp, chạy benchmark ALPR trên ảnh thật có nhãn, và các giới hạn đánh giá hiện tại nằm trong [docs/ML_LIFECYCLE.md](docs/ML_LIFECYCLE.md).
 
 ## 5. Chạy hệ thống
 
