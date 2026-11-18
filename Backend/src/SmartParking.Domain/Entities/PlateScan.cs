@@ -9,5 +9,6 @@ public class PlateScan
     public string? CropImagePath { get; set; }
     public DateTime ScanTime { get; set; } = DateTime.UtcNow;
     public string? Note { get; set; }
+    public string? ColorCode { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

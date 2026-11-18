@@ -28,7 +28,7 @@ public class PlateScanService : IPlateScanService
     public async Task<PlateScanResponse> CreateAsync(CreatePlateScanRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Plate))
-            throw new ArgumentException("Biển số xe không được để trống.");
+            throw new ArgumentException("Bien so xe khong duoc de trong.");
 
         var scan = new PlateScan
         {
@@ -38,6 +38,7 @@ public class PlateScanService : IPlateScanService
             CropImagePath = request.CropImagePath,
             ScanTime = request.ScanTime ?? DateTime.Now,
             Note = request.Note,
+            ColorCode = string.IsNullOrWhiteSpace(request.ColorCode) ? null : request.ColorCode.Trim(),
             CreatedAt = DateTime.Now
         };
 
@@ -73,6 +74,7 @@ public class PlateScanService : IPlateScanService
         CropImagePath = scan.CropImagePath,
         ScanTime = scan.ScanTime,
         Note = scan.Note,
+        ColorCode = scan.ColorCode,
         CreatedAt = scan.CreatedAt
     };
 }

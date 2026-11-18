@@ -8,4 +8,5 @@ public class CreatePlateScanRequest
     public string? CropImagePath { get; set; }
     public DateTime? ScanTime { get; set; }
     public string? Note { get; set; }
+    public string? ColorCode { get; set; }
 }

@@ -9,6 +9,7 @@ public class PlateScanResponse
     public string? CropImagePath { get; set; }
     public DateTime ScanTime { get; set; }
     public string? Note { get; set; }
+    public string? ColorCode { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

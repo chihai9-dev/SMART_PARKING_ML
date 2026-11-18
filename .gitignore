@@ -26,3 +26,7 @@ Backend/.vs/
 
 # Allow the trained plate-color model to be versioned
 !models/classification/best_classification_model.pkl
+
+data/processed/scans/
+__pycache__/
+*.pyc

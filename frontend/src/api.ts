@@ -4,9 +4,9 @@ export type PlateScanDto = {
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
-  plateColor?: PlateColorResult
   scanTime: string
   note?: string | null
+  colorCode?: string | null
   createdAt?: string
 }
 
@@ -22,6 +22,7 @@ export type PlateColorResult = {
   confidence?: number
   probabilities?: Record<string, number>
   algorithm?: string
+  features?: Record<string, number>
 }
 
 export type PlatePreview = {
@@ -29,12 +30,12 @@ export type PlatePreview = {
   plate?: string
   valid?: boolean
   confidence?: number
-  plate_color?: PlateColorResult
   engine?: string
   message?: string
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
   bbox?: number[]
+  plate_color?: PlateColorResult
   [key: string]: unknown
 }
 
@@ -43,7 +44,6 @@ export type ScanResult = {
   plate?: string
   valid?: boolean
   confidence?: number
-  plate_color?: PlateColorResult
   engine?: string
   message?: string
   bbox?: number[]
@@ -53,6 +53,7 @@ export type ScanResult = {
   crop_path?: string
   database_saved?: boolean
   database_message?: string | null
+  plate_color?: PlateColorResult
   [key: string]: unknown
 }
 
@@ -60,12 +61,11 @@ async function readResponse<T>(response: Response): Promise<T> {
   const text = await response.text()
   let body: unknown = {}
   if (text) {
-    try { body = JSON.parse(text) }
-    catch { body = { message: text } }
+    try { body = JSON.parse(text) } catch { body = { message: text } }
   }
   if (!response.ok) {
     const data = body as { message?: string; title?: string }
-    throw new Error(data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').'))
+    throw new Error(data.message || data.title || ('Request failed (HTTP ' + response.status + ').'))
   }
   return body as T
 }
@@ -76,7 +76,7 @@ export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> 
     : '/backend-api/PlateScans'
   const response = await fetch(url, { headers: { Accept: 'application/json' } })
   const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
+  if (!Array.isArray(result)) throw new Error('Du lieu tu backend khong dung dinh dang.')
   return result as PlateScanDto[]
 }
 
@@ -87,7 +87,8 @@ export async function fetchPlateScanStats(): Promise<PlateScanStats> {
 
 export async function deletePlateScan(id: number): Promise<void> {
   const response = await fetch('/backend-api/PlateScans/' + id, {
-    method: 'DELETE', headers: { Accept: 'application/json' },
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
   })
   await readResponse<unknown>(response)
 }
@@ -104,19 +105,4 @@ export async function previewPlate(image: Blob): Promise<PlatePreview> {
   form.append('image', image, 'camera-frame.jpg')
   const response = await fetch('/python-api/preview-plate', { method: 'POST', body: form })
   return readResponse<PlatePreview>(response)
-}
-
-export async function createPlateScan(scan: {
-  plate: string
-  confidence: number
-  imagePath?: string | null
-  cropImagePath?: string | null
-  note?: string | null
-}): Promise<PlateScanDto> {
-  const response = await fetch('/backend-api/PlateScans', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(scan),
-  })
-  return readResponse<PlateScanDto>(response)
 }
