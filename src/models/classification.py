@@ -9,18 +9,17 @@ from sklearn.ensemble import RandomForestClassifier
 from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_features
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-# Dung model mau bien so da duoc train
+# Model màu được huấn luyện và ghi metadata bởi train_plate_color.py.
 MODEL_PATH = ROOT_DIR / "models" / "classification" / "plate_color_model.pkl"
-# Fallback sang best_classification_model neu plate_color_model chua co
 _FALLBACK_PATH = ROOT_DIR / "models" / "classification" / "best_classification_model.pkl"
 
 LOGGER = logging.getLogger(__name__)
 
 COLOR_LABELS_VI = {
-    "White":  "Bien Trang (Dan su)",
-    "Yellow": "Bien Vang (Kinh doanh van tai)",
-    "Blue":   "Bien Xanh (Co quan Nha nuoc)",
-    "Red":    "Bien Do (Quan doi)",
+    "White": "Biển Trắng (Dân sự)",
+    "Yellow": "Biển Vàng (Kinh doanh vận tải)",
+    "Blue": "Biển Xanh (Cơ quan Nhà nước)",
+    "Red": "Biển Đỏ (Quân đội)",
 }
 
 
@@ -52,12 +51,14 @@ def _is_valid_color_model(model) -> bool:
 
 def load_color_model(model_path: Path | str | None = None) -> RandomForestClassifier | None:
     """
-    Tai model phan loai mau bien so.
-    Thu tu uu tien: plate_color_model.pkl -> duong dan truyen vao -> fallback.
+    Load the requested model, then the active model, then the legacy artifact.
     """
-    candidates = [MODEL_PATH]
+    candidates = []
     if model_path is not None:
-        candidates.insert(0, Path(model_path))
+        candidates.append(Path(model_path))
+    candidates.extend((MODEL_PATH, _FALLBACK_PATH))
+
+    candidates = list(dict.fromkeys(candidates))
 
     for path in candidates:
         if not path.is_file():

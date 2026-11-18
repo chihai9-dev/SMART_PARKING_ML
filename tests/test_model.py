@@ -1,6 +1,8 @@
 """Unit test huấn luyện và dự đoán Random Forest."""
 import sys
 import unittest
+import hashlib
+import json
 from pathlib import Path
 from unittest.mock import patch
 import numpy as np
@@ -12,6 +14,8 @@ from src.models.classification import (
     load_color_model,
     predict_plate_color,
     train_classification_model,
+    MODEL_PATH,
+    _FALLBACK_PATH,
 )
 from src.models.tuning import tune_model
 
@@ -34,6 +38,22 @@ class TestModel(unittest.TestCase):
         model = load_color_model()
         self.assertIsNotNone(model)
         self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+
+    def test_legacy_model_is_used_when_active_model_is_missing(self):
+        with (
+            patch("src.models.classification.MODEL_PATH", MODEL_PATH.with_name("missing.pkl")),
+            patch("src.models.classification._FALLBACK_PATH", _FALLBACK_PATH),
+        ):
+            model = load_color_model()
+        self.assertIsNotNone(model)
+        self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+
+    def test_metadata_hash_matches_active_model(self):
+        metadata_path = MODEL_PATH.with_name("model_metadata.json")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        digest = hashlib.sha256(MODEL_PATH.read_bytes()).hexdigest()
+        self.assertEqual(metadata["model_artifact"], MODEL_PATH.name)
+        self.assertEqual(metadata["model_sha256"], digest)
 
     def test_invalid_model_file_is_ignored(self):
         model_path = Path(__file__).resolve().parents[1] / "models" / "classification" / "best_classification_model.pkl"

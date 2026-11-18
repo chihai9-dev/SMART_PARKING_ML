@@ -151,8 +151,11 @@ def main():
         path.parent.mkdir(parents=True,exist_ok=True)
     joblib.dump(model,MODEL_PATH)
     artifact_sha256 = hashlib.sha256(MODEL_PATH.read_bytes()).hexdigest()
+    model_config = model.get_params()
     pd.DataFrame([{
-        "model":"RandomForestClassifier","n_estimators":120,"max_depth":12,
+        "model":"RandomForestClassifier",
+        "n_estimators":model_config["n_estimators"],
+        "max_depth":model_config["max_depth"],
         "train_samples":len(X_train),"test_samples":len(X_test),
         "real_samples":counts["real"],"synthetic_samples":counts["synthetic"],
         "evaluation_source":evaluation_source,
@@ -177,6 +180,7 @@ def main():
     metadata = {
         "task":"Phân loại màu nền biển số xe (4 nhóm)",
         "algorithm":"RandomForestClassifier","classes":list(model.classes_),
+        "model_artifact":MODEL_PATH.name,
         "class_labels_vi":COLOR_LABELS_VI,"features":FEATURE_NAMES,
         "dataset_source_counts":counts,
         "real_capture_groups":int(len(set(groups[sources == "real"]))),
@@ -195,11 +199,11 @@ def main():
         "created_at_utc":datetime.now(timezone.utc).isoformat(),
         "feature_schema_version":"plate-color-hsv-v1",
         "training_config":{
-            "n_estimators":120,
-            "max_depth":12,
-            "min_samples_split":4,
-            "class_weight":"balanced",
-            "random_state":42,
+            "n_estimators":model_config["n_estimators"],
+            "max_depth":model_config["max_depth"],
+            "min_samples_split":model_config["min_samples_split"],
+            "class_weight":model_config["class_weight"],
+            "random_state":model_config["random_state"],
             "synthetic_samples_per_class":250,
         },
         "runtime":{
