@@ -77,12 +77,22 @@ def load_color_model(model_path: Path | str | None = None) -> RandomForestClassi
 
 
 def predict_plate_color(
-    model: RandomForestClassifier | None, crop_bgr: np.ndarray
+    model: Any = None,
+    crop_bgr: np.ndarray | None = None,
 ) -> dict[str, Any]:
     """
     Du doan mau nen bien so tu anh crop BGR.
+    Ho tro ca:
+      - predict_plate_color(model, crop_bgr)
+      - predict_plate_color(crop_bgr) (tu dong load model mac dinh)
     Tra ve dict voi cac key: color_code, color_label, confidence, probabilities.
     """
+    if isinstance(model, np.ndarray) and crop_bgr is None:
+        crop_bgr = model
+        model = load_color_model()
+    elif model is None:
+        model = load_color_model()
+
     result: dict[str, Any] = {
         "color_code": "Unknown",
         "color_label": "Chua phan loai duoc mau bien so",
