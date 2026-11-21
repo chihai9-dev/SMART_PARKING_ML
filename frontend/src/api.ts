@@ -18,6 +18,22 @@ export type PlateScanStats = {
   averageConfidence: number
 }
 
+export type PlateClassification = {
+  valid: boolean
+  plate: string
+  province_code: string
+  province_name: string
+  region: string
+  vehicle_category: string
+  series: string
+  color_name: string
+  color_desc: string
+  layout: string
+  digits?: string
+  lucky_tag: string
+  classification_summary: string
+}
+
 export type PlatePreview = {
   status?: string
   plate?: string
@@ -28,6 +44,7 @@ export type PlatePreview = {
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
   vehicle_type?: string
+  classification?: PlateClassification
   bbox?: number[]
   [key: string]: unknown
 }
@@ -40,6 +57,7 @@ export type ScanResult = {
   engine?: string
   message?: string
   vehicle_type?: string
+  classification?: PlateClassification
   bbox?: number[]
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string

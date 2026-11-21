@@ -6,37 +6,37 @@ import {
   previewPlate,
   scanPlate,
 } from './api'
-import type { PlatePreview, PlateScanDto, PlateScanStats, ScanResult } from './api'
+import type { PlateClassification, PlatePreview, PlateScanDto, PlateScanStats, ScanResult } from './api'
 
 type MenuId = 'camera' | 'upload' | 'history' | 'dashboard' | 'settings'
 
 const menuItems: { id: MenuId; icon: string; label: string }[] = [
-  { id: 'camera', icon: '🎥', label: 'Quét Camera' },
-  { id: 'upload', icon: '🖼', label: 'Tải ảnh nhận diện' },
-  { id: 'history', icon: '📋', label: 'Nhật ký nhận diện' },
-  { id: 'dashboard', icon: '📊', label: 'Thống kê' },
-  { id: 'settings', icon: '⚙', label: 'Hệ thống' },
+  { id: 'camera', icon: '🎥', label: 'Quét & Phân loại Camera' },
+  { id: 'upload', icon: '🖼', label: 'Tải ảnh phân loại' },
+  { id: 'history', icon: '📋', label: 'Nhật ký phân loại' },
+  { id: 'dashboard', icon: '📊', label: 'Thống kê phân loại' },
+  { id: 'settings', icon: '⚙', label: 'Cấu hình AI' },
 ]
 
 const pageDetails: Record<MenuId, { title: string; description: string }> = {
   camera: {
-    title: 'Quét Camera trực tiếp',
-    description: 'Nhận diện biển số xe thời gian thực qua webcam bằng mô hình YOLOv8 và RapidOCR.',
+    title: 'Quét & Phân loại biển số qua Camera',
+    description: 'Phát hiện vị trí bằng YOLOv8, trích xuất ký tự bằng RapidOCR và phân loại tỉnh thành, nhóm xe, màu biển tức thì.',
   },
   upload: {
-    title: 'Tải ảnh & Nhận diện',
-    description: 'Tải ảnh lên hệ thống, tự động khoanh vùng biển số, nhận dạng ký tự và lưu vào CSDL.',
+    title: 'Tải ảnh & Phân loại biển số xe',
+    description: 'Tải ảnh lên hệ thống để phân loại tỉnh/thành phố đăng ký, màu sắc biển, bố cục và ý nghĩa phong thủy.',
   },
   history: {
-    title: 'Nhật ký nhận diện',
-    description: 'Tra cứu, tìm kiếm và quản lý toàn bộ các lượt quét biển số xe đã lưu trong SQL Server.',
+    title: 'Nhật ký phân loại biển số xe',
+    description: 'Tra cứu, lọc và quản lý toàn bộ các biển số xe đã được phân loại và lưu trữ trong SQL Server.',
   },
   dashboard: {
-    title: 'Báo cáo thống kê',
-    description: 'Tổng hợp số lượt nhận diện biển số và độ tin cậy của mô hình AI.',
+    title: 'Báo cáo thống kê phân loại',
+    description: 'Tổng hợp số liệu phân loại theo địa phương, nhóm phương tiện, màu sắc biển và độ tin cậy của AI.',
   },
   settings: {
-    title: 'Trạng thái hệ thống',
+    title: 'Kiến trúc mô hình & Dịch vụ AI',
     description: 'Kiểm tra trạng thái các dịch vụ: Python AI Service, .NET Web API và SQL Server.',
   },
 }
@@ -58,6 +58,73 @@ function formatDateTime(value?: string | null) {
 function formatPlateDisplay(plate: string) {
   if (!plate) return 'CHƯA RÕ'
   return plate.toUpperCase()
+}
+
+// Component hiển thị chi tiết các tiêu chí phân loại biển số xe
+function ClassificationCard({ classification }: { classification?: PlateClassification | null }) {
+  if (!classification) return null
+
+  const colorClass =
+    classification.color_name === 'Vàng'
+      ? 'color-badge-yellow'
+      : classification.color_name === 'Xanh'
+      ? 'color-badge-blue'
+      : classification.color_name === 'Đỏ'
+      ? 'color-badge-red'
+      : 'color-badge-white'
+
+  return (
+    <div className="classification-box">
+      <div className="classification-title">
+        <span>🏷️</span>
+        <span>KẾT QUẢ PHÂN LOẠI BIỂN SỐ XE</span>
+      </div>
+
+      <div className="classification-grid">
+        {/* Tỉnh / Thành phố */}
+        <div className="class-tag">
+          <span className="class-label">Tỉnh / Thành phố đăng ký</span>
+          <span className="class-value">
+            📍 {classification.province_name}{' '}
+            <small style={{ color: '#888', fontWeight: 'normal' }}>
+              ({classification.region} · Mã {classification.province_code})
+            </small>
+          </span>
+        </div>
+
+        {/* Nhóm phương tiện */}
+        <div className="class-tag">
+          <span className="class-label">Nhóm phương tiện cấp biển</span>
+          <span className="class-value">🚗 {classification.vehicle_category}</span>
+        </div>
+
+        {/* Màu sắc biển */}
+        <div className="class-tag">
+          <span className="class-label">Màu sắc & Mục đích sử dụng</span>
+          <span className="class-value">
+            <span className={`conf-pill ${colorClass}`} style={{ marginRight: 6 }}>
+              Biển {classification.color_name}
+            </span>
+            <small style={{ color: '#666' }}>{classification.color_desc}</small>
+          </span>
+        </div>
+
+        {/* Bố cục biển */}
+        <div className="class-tag">
+          <span className="class-label">Bố cục kích thước biển</span>
+          <span className="class-value">📐 {classification.layout}</span>
+        </div>
+      </div>
+
+      {/* Đặc điểm phong thủy (nếu có) */}
+      {classification.lucky_tag && classification.lucky_tag !== 'Tiêu chuẩn' && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="class-label" style={{ margin: 0 }}>Đặc điểm số:</span>
+          <span className="lucky-pill">✨ {classification.lucky_tag}</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function App() {
@@ -90,6 +157,7 @@ export default function App() {
   const [cameraStatus, setCameraStatus] = useState('Camera chưa bật.')
   const [latestPreview, setLatestPreview] = useState<PlatePreview | null>(null)
   const [lastSavedScan, setLastSavedScan] = useState<PlateScanDto | null>(null)
+  const [lastSavedClass, setLastSavedClass] = useState<PlateClassification | null>(null)
   const [stableCount, setStableCount] = useState(0)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -205,7 +273,7 @@ export default function App() {
     })
   }
 
-  // Vòng lặp nhận diện camera tự động
+  // Vòng lặp nhận diện & phân loại camera tự động
   useEffect(() => {
     if (activeMenu !== 'camera' || !cameraOn || !autoScanEnabled) return
 
@@ -242,25 +310,26 @@ export default function App() {
           if (count < 3) {
             setCameraStatus(`Đã phát hiện ${rawPlate}. Đang xác minh ổn định (${count}/3 frame)...`)
           } else if (lastProcessedPlate.current === rawPlate) {
-            setCameraStatus(`Biển số ${rawPlate} đã được lưu vào CSDL. Đang theo dõi...`)
+            setCameraStatus(`Biển số ${rawPlate} đã được phân loại & lưu vào CSDL. Đang theo dõi...`)
           } else {
-            // Đã đạt 3 frame ổn định và là biển mới -> Tự động lưu vào SQL Server
+            // Đã đạt 3 frame ổn định -> Tự động lưu vào SQL Server
             lastProcessedPlate.current = rawPlate
             setCameraBusy(true)
-            setCameraStatus(`Đã xác thực ${rawPlate}! Đang lưu vào SQL Server...`)
+            setCameraStatus(`Đã xác thực ${rawPlate}! Đang phân loại & ghi vào SQL Server...`)
 
             try {
               const scanRes = await scanPlate(frameBlob)
               setRefreshKey((k) => k + 1)
-              setCameraStatus(`✓ Đã lưu biển số ${rawPlate} vào CSDL thành công!`)
+              setCameraStatus(`✓ Đã phân loại & lưu biển số ${rawPlate} vào CSDL thành công!`)
+              setLastSavedClass(scanRes.classification || null)
               setLastSavedScan({
                 scanId: Date.now(),
                 plate: scanRes.plate || rawPlate,
-                vehicleType: 'Vehicle',
+                vehicleType: scanRes.classification?.vehicle_category || 'Phương tiện',
                 confidence: scanRes.confidence || 0.95,
                 cropImagePath: scanRes.crop_path ? `/scan-image/${scanRes.crop_path.split(/[\\/]/).pop()}` : null,
                 scanTime: new Date().toISOString(),
-                note: 'Tự động quét từ Camera',
+                note: scanRes.classification?.classification_summary || 'Phân loại từ Camera',
               })
             } catch (saveErr) {
               lastProcessedPlate.current = ''
@@ -293,13 +362,13 @@ export default function App() {
   async function handleManualCapture() {
     if (!cameraOn) return
     setCameraBusy(true)
-    setCameraStatus('Đang chụp và nhận diện biển số...')
+    setCameraStatus('Đang chụp và phân loại biển số...')
     try {
       const blob = await captureFrameBlob()
       const res = await scanPlate(blob)
       setUploadResult(res)
       setRefreshKey((k) => k + 1)
-      setCameraStatus(`Đã nhận diện: ${res.plate || 'Không tìm thấy'} (${(Number(res.confidence || 0) * 100).toFixed(1)}%)`)
+      setCameraStatus(`Đã phân loại: ${res.plate || 'Không tìm thấy'} (${res.classification?.province_name || ''})`)
     } catch (err) {
       setCameraStatus(err instanceof Error ? err.message : 'Lỗi nhận diện.')
     } finally {
@@ -328,7 +397,7 @@ export default function App() {
       setUploadResult(res)
       setRefreshKey((k) => k + 1)
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Lỗi trong quá trình nhận diện ảnh.')
+      setUploadError(err instanceof Error ? err.message : 'Lỗi trong quá trình nhận diện & phân loại ảnh.')
     } finally {
       setUploadScanning(false)
     }
@@ -352,10 +421,11 @@ export default function App() {
       return
     }
 
-    const headers = ['Mã quét', 'Biển số', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
+    const headers = ['Mã quét', 'Biển số', 'Phân loại', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
     const rows = scans.map((s) => [
       s.scanId,
       `"${s.plate}"`,
+      `"${s.vehicleType || ''}"`,
       `"${(s.confidence * 100).toFixed(1)}%"`,
       `"${formatDateTime(s.scanTime)}"`,
       `"${s.note || ''}"`,
@@ -366,7 +436,7 @@ export default function App() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `plate_scans_${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `plate_classification_${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -374,8 +444,27 @@ export default function App() {
   // Lọc danh sách lịch sử theo từ khóa tìm kiếm
   const filteredScans = scans.filter((s) => {
     const term = searchTerm.trim().toLowerCase()
-    return !term || s.plate.toLowerCase().includes(term) || (s.note || '').toLowerCase().includes(term)
+    return (
+      !term ||
+      s.plate.toLowerCase().includes(term) ||
+      (s.vehicleType || '').toLowerCase().includes(term) ||
+      (s.note || '').toLowerCase().includes(term)
+    )
   })
+
+  // Thống kê phân loại địa phương từ danh sách scans
+  const provinceCounts: Record<string, number> = {}
+  scans.forEach((s) => {
+    const note = s.note || ''
+    const parts = note.split('·')
+    const prov = parts[0]?.trim() || s.plate.slice(0, 2)
+    if (prov) {
+      provinceCounts[prov] = (provinceCounts[prov] || 0) + 1
+    }
+  })
+  const topProvinces = Object.entries(provinceCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
 
   const currentPage = pageDetails[activeMenu]
 
@@ -387,7 +476,7 @@ export default function App() {
           <div className="brand-logo">AI</div>
           <div className="brand-copy">
             <div className="brand-name">Hệ thống ALPR</div>
-            <div className="brand-subtitle">Nhận diện Biển số xe</div>
+            <div className="brand-subtitle">Phân loại Biển số xe</div>
           </div>
         </div>
 
@@ -412,11 +501,11 @@ export default function App() {
             <span className="note-mark">{connected ? '✓' : '!'}</span>
             <p>
               {connected
-                ? `Đã kết nối SQL Server (${scans.length} bản ghi).`
+                ? `Đã kết nối SQL Server (${scans.length} lượt phân loại).`
                 : 'Đang kiểm tra kết nối .NET Backend...'}
             </p>
           </div>
-          <div className="sidebar-version">YOLOv8n + RapidOCR · ASP.NET Core</div>
+          <div className="sidebar-version">YOLOv8 + RapidOCR · ASP.NET Core</div>
         </div>
       </aside>
 
@@ -425,7 +514,7 @@ export default function App() {
         <header className="topbar">
           <div>
             <div className="breadcrumb">
-              Nhận diện biển số xe <span>/</span> {currentPage.title}
+              Phân loại biển số xe <span>/</span> {currentPage.title}
             </div>
             <h1>{currentPage.title}</h1>
             <p className="page-description">{currentPage.description}</p>
@@ -459,22 +548,22 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 1: QUÉT CAMERA TRỰC TIẾP                             */}
+        {/* TAB 1: QUÉT & PHÂN LOẠI CAMERA TRỰC TIẾP                 */}
         {/* ======================================================== */}
         {activeMenu === 'camera' && (
           <div className="gate-layout">
             <section className="panel gate-panel">
               <div className="panel-header">
                 <div>
-                  <h3>Camera quét thời gian thực</h3>
-                  <p>Mô hình YOLOv8 tự động khoanh vùng biển số, RapidOCR trích xuất ký tự.</p>
+                  <h3>Camera quét & Phân loại thời gian thực</h3>
+                  <p>Khoanh vùng bằng YOLOv8, trích xuất ký tự và phân loại tỉnh thành, loại biển ngay tức thì.</p>
                 </div>
                 <span className={cameraOn ? 'status-pill status-open' : 'status-pill status-closed'}>
                   {cameraOn ? 'Đang hoạt động' : 'Camera tắt'}
                 </span>
               </div>
 
-              {/* Khung hình Camera với hiệu ứng đường quét */}
+              {/* Khung hình Camera với hiệu ứng tia quét */}
               <div className="camera-scanner-wrapper">
                 <video ref={videoRef} autoPlay playsInline muted style={{ display: cameraOn ? 'block' : 'none' }} />
                 {cameraOn && <div className="scan-line" />}
@@ -482,7 +571,7 @@ export default function App() {
                   <div className="camera-offline">
                     <div className="camera-symbol">📷</div>
                     <strong>Webcam chưa bật</strong>
-                    <span>Nhấn nút “Bật Camera” bên dưới để bắt đầu nhận diện.</span>
+                    <span>Nhấn nút “Bật Camera” bên dưới để bắt đầu nhận diện và phân loại.</span>
                   </div>
                 )}
               </div>
@@ -492,7 +581,7 @@ export default function App() {
               <div className="camera-controls" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '14px 17px' }}>
                 {!cameraOn ? (
                   <button className="primary-button" onClick={startCamera}>
-                    Bật Camera & Bắt đầu quét
+                    Bật Camera & Bắt đầu phân loại
                   </button>
                 ) : (
                   <>
@@ -536,33 +625,40 @@ export default function App() {
                 )}
               </div>
 
-              {/* Preview kết quả nhận diện hiện tại */}
+              {/* Kết quả nhận diện & Phân loại trực tiếp */}
               {latestPreview && latestPreview.valid && latestPreview.plate && (
-                <div className="recognition-result">
-                  <div>
-                    <span className="result-caption">Biển số phát hiện</span>
-                    <div style={{ marginTop: 6 }}>
-                      <span className="plate-badge plate-badge-lg">
-                        {formatPlateDisplay(latestPreview.plate)}
-                      </span>
+                <div style={{ padding: '0 17px 17px' }}>
+                  <div className="recognition-result">
+                    <div>
+                      <span className="result-caption">Biển số phát hiện</span>
+                      <div style={{ marginTop: 6 }}>
+                        <span className="plate-badge plate-badge-lg">
+                          {formatPlateDisplay(latestPreview.plate)}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="result-caption">Tỉnh / Thành phố</span>
+                      <div style={{ marginTop: 8 }}>
+                        <strong style={{ color: '#2b2438' }}>
+                          📍 {latestPreview.classification?.province_name || 'Đang phân tích...'}
+                        </strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="result-caption">Độ tin cậy</span>
+                      <div style={{ marginTop: 8 }}>
+                        <span className="conf-pill conf-high">
+                          {typeof latestPreview.confidence === 'number'
+                            ? (latestPreview.confidence * 100).toFixed(1) + '%'
+                            : '98%'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="result-caption">Định dạng</span>
-                    <div style={{ marginTop: 8 }}>
-                      <span className="conf-pill conf-high">✓ Hợp lệ chuẩn VN</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="result-caption">Độ tin cậy</span>
-                    <div style={{ marginTop: 8 }}>
-                      <span className="conf-pill conf-high">
-                        {typeof latestPreview.confidence === 'number'
-                          ? (latestPreview.confidence * 100).toFixed(1) + '%'
-                          : '98%'}
-                      </span>
-                    </div>
-                  </div>
+
+                  {/* Chi tiết phân loại */}
+                  <ClassificationCard classification={latestPreview.classification} />
                 </div>
               )}
             </section>
@@ -572,7 +668,7 @@ export default function App() {
               <section className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3>Lượt quét mới lưu</h3>
+                    <h3>Biển số vừa phân loại & lưu</h3>
                     <p>Đã ghi nhận vào SQL Server</p>
                   </div>
                   <button className="text-button" onClick={() => setActiveMenu('history')}>
@@ -613,10 +709,12 @@ export default function App() {
                           />
                         </div>
                       )}
+
                       <div style={{ fontSize: 12, color: '#665d75', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div><strong>Thời gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
                         <div><strong>Độ tin cậy:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
                       </div>
+                      <ClassificationCard classification={lastSavedClass} />
                     </div>
                   ) : (
                     <div className="empty-state">Chưa có lượt quét mới nào trong phiên hiện tại.</div>
@@ -627,17 +725,18 @@ export default function App() {
               <section className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3>Quy trình hoạt động</h3>
-                    <p>Tự động hóa hoàn toàn</p>
+                    <h3>Tiêu chí phân loại biển số</h3>
+                    <p>Căn cứ Thông tư 24/2023/TT-BCA</p>
                   </div>
                 </div>
                 <div style={{ padding: '0 17px 17px', fontSize: 12, color: '#686077', lineHeight: 1.6 }}>
-                  <ol style={{ paddingLeft: 18, margin: 0 }}>
-                    <li>Webcam liên tục chụp các khung hình gửi đến Python AI Service.</li>
-                    <li>Mô hình <strong>YOLOv8</strong> phát hiện vùng chứa biển số.</li>
-                    <li><strong>RapidOCR</strong> trích xuất chính xác các ký tự biển số.</li>
-                    <li>Khi kết quả đạt <strong>3 frame liên tiếp trùng khớp</strong>, hệ thống tự động đẩy dữ liệu sang <strong>.NET API</strong> để ghi vào <strong>SQL Server</strong>.</li>
-                  </ol>
+                  <ul style={{ paddingLeft: 18, margin: 0 }}>
+                    <li><strong>Địa phương:</strong> 63 tỉnh/thành phố dựa theo mã 2 chữ số đầu.</li>
+                    <li><strong>Màu biển:</strong> Nền trắng (Dân sự), Nền vàng (Vận tải), Nền xanh (Cơ quan), Nền đỏ (Quân đội).</li>
+                    <li><strong>Phương tiện:</strong> Phân biệt ô tô con (Seri A), xe khách (B), xe tải (C), xe máy (Seri chữ+số).</li>
+                    <li><strong>Bố cục:</strong> Biển 1 dòng dài (520x110mm) vs Biển 2 dòng vuông (330x165mm).</li>
+                    <li><strong>Phong thủy:</strong> Phát hiện Tứ quý, Ngũ quý, Sảnh tiến, Thần tài, Lộc phát.</li>
+                  </ul>
                 </div>
               </section>
             </div>
@@ -645,14 +744,14 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 2: TẢI ẢNH & NHẬN DIỆN                               */}
+        {/* TAB 2: TẢI ẢNH & PHÂN LOẠI                              */}
         {/* ======================================================== */}
         {activeMenu === 'upload' && (
           <section className="panel full-panel">
             <div className="panel-header">
               <div>
-                <h3>Tải ảnh xe & Trích xuất biển số</h3>
-                <p>Hỗ trợ ảnh chụp định dạng JPG, PNG, WEBP.</p>
+                <h3>Tải ảnh xe & Phân loại biển số</h3>
+                <p>Hệ thống tự động phát hiện, trích xuất ký tự và phân loại chi tiết theo quy định.</p>
               </div>
             </div>
 
@@ -688,7 +787,7 @@ export default function App() {
                 <div className="dropzone-title">
                   {uploadFile ? `Đã chọn: ${uploadFile.name}` : 'Kéo thả ảnh vào đây hoặc bấm để chọn file'}
                 </div>
-                <div className="dropzone-sub">Độ phân giải tối ưu: 640x640 trở lên · Dung lượng tối đa 8MB</div>
+                <div className="dropzone-sub">Độ phân giải tối ưu: 640x640 trở lên · Hỗ trợ JPG, PNG, WEBP</div>
               </div>
 
               {uploadError && (
@@ -705,7 +804,7 @@ export default function App() {
                     onClick={handleExecuteUploadScan}
                     disabled={uploadScanning}
                   >
-                    {uploadScanning ? 'Đang nhận diện AI...' : 'Bắt đầu nhận diện'}
+                    {uploadScanning ? 'Đang nhận diện & phân loại AI...' : 'Bắt đầu phân loại'}
                   </button>
                   <button
                     className="secondary-button"
@@ -726,9 +825,9 @@ export default function App() {
                 <div className="alpr-result-card">
                   <div className="alpr-result-header">
                     <div>
-                      <strong style={{ fontSize: 16, color: '#302842' }}>Kết quả trích xuất</strong>
+                      <strong style={{ fontSize: 16, color: '#302842' }}>Kết quả phân loại biển số</strong>
                       <div style={{ fontSize: 12, color: '#888096', marginTop: 3 }}>
-                        Engine: {uploadResult.engine || 'YOLOv8 + RapidOCR'} · Đã lưu vào SQL Server
+                        {uploadResult.classification?.classification_summary || 'Đã phân loại thành công'}
                       </div>
                     </div>
                     <div>
@@ -741,7 +840,7 @@ export default function App() {
                   <div className="alpr-preview-grid">
                     {/* Ảnh gốc có vẽ Bounding Box */}
                     <div className="preview-pane">
-                      <span className="preview-pane-title">Ảnh nhận diện (YOLOv8 Bounding Box):</span>
+                      <span className="preview-pane-title">Vùng phát hiện (YOLOv8 Bounding Box):</span>
                       <div className="preview-img-box">
                         <img
                           src={
@@ -784,7 +883,7 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* Chi tiết thông số */}
+                      {/* Chi tiết thông số cơ bản */}
                       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#746c84' }}>Độ tin cậy:</span>
@@ -799,17 +898,20 @@ export default function App() {
                           <strong>{uploadResult.valid ? '✓ Hợp lệ' : 'Cần kiểm tra'}</strong>
                         </div>
                       </div>
-
-                      <div style={{ marginTop: 14 }}>
-                        <button
-                          className="primary-button"
-                          style={{ width: '100%' }}
-                          onClick={() => setActiveMenu('history')}
-                        >
-                          Xem trong Nhật ký <span>→</span>
-                        </button>
-                      </div>
                     </div>
+                  </div>
+
+                  {/* Bảng phân loại chi tiết */}
+                  <ClassificationCard classification={uploadResult.classification} />
+
+                  <div style={{ marginTop: 16 }}>
+                    <button
+                      className="primary-button"
+                      style={{ width: '100%' }}
+                      onClick={() => setActiveMenu('history')}
+                    >
+                      Xem trong Nhật ký phân loại <span>→</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -818,14 +920,14 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 3: NHẬT KÝ NHẬN DIỆN (LỊCH SỬ)                       */}
+        {/* TAB 3: NHẬT KÝ PHÂN LOẠI BIỂN SỐ                         */}
         {/* ======================================================== */}
         {activeMenu === 'history' && (
           <section className="panel full-panel">
             <div className="panel-header panel-header-stackable">
               <div>
-                <h3>Danh sách các lượt nhận diện biển số</h3>
-                <p>Tổng cộng {scans.length} bản ghi lưu trong bảng PlateScans của SQL Server.</p>
+                <h3>Nhật ký nhận diện & phân loại biển số xe</h3>
+                <p>Tổng cộng {scans.length} bản ghi đã lưu trong bảng PlateScans của SQL Server.</p>
               </div>
 
               {/* Bộ công cụ tìm kiếm */}
@@ -835,7 +937,7 @@ export default function App() {
                   <input
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Tìm theo biển số, ghi chú..."
+                    placeholder="Tìm theo biển số, tỉnh thành, ghi chú..."
                   />
                 </label>
 
@@ -848,7 +950,7 @@ export default function App() {
             {loadingScans ? (
               <div className="empty-state">Đang tải nhật ký từ SQL Server...</div>
             ) : filteredScans.length === 0 ? (
-              <div className="empty-state">Không tìm thấy lượt quét nào phù hợp với từ khóa tìm kiếm.</div>
+              <div className="empty-state">Không tìm thấy bản ghi nào phù hợp với từ khóa tìm kiếm.</div>
             ) : (
               <div className="table-wrapper">
                 <table className="data-table">
@@ -857,10 +959,11 @@ export default function App() {
                       <th style={{ width: 60 }}>#ID</th>
                       <th style={{ width: 80 }}>Ảnh cắt</th>
                       <th>Biển số xe</th>
+                      <th>Phân loại nhóm xe</th>
                       <th>Độ tin cậy</th>
-                      <th>Thời gian nhận diện</th>
-                      <th>Ghi chú</th>
-                      <th style={{ textAlign: 'center', width: 80 }}>Thao tác</th>
+                      <th>Thời gian quét</th>
+                      <th>Chi tiết phân loại</th>
+                      <th style={{ textAlign: 'center', width: 70 }}>Xóa</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -891,6 +994,11 @@ export default function App() {
                           </span>
                         </td>
                         <td>
+                          <strong style={{ fontSize: 12, color: '#382f4c' }}>
+                            {scan.vehicleType || 'Phương tiện'}
+                          </strong>
+                        </td>
+                        <td>
                           <span
                             className={`conf-pill ${
                               scan.confidence >= 0.85
@@ -904,7 +1012,9 @@ export default function App() {
                           </span>
                         </td>
                         <td>{formatDateTime(scan.scanTime)}</td>
-                        <td style={{ color: '#888094', fontSize: 11 }}>{scan.note || '—'}</td>
+                        <td style={{ color: '#5f5573', fontSize: 11, maxWidth: 300, whiteSpace: 'normal' }}>
+                          {scan.note || '—'}
+                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
                             className="text-button"
@@ -924,7 +1034,7 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
-        {/* TAB 4: THỐNG KÊ (DASHBOARD)                              */}
+        {/* TAB 4: THỐNG KÊ PHÂN LOẠI (DASHBOARD)                   */}
         {/* ======================================================== */}
         {activeMenu === 'dashboard' && (
           <>
@@ -932,10 +1042,10 @@ export default function App() {
               <article className="stat-card">
                 <div className="stat-heading">
                   <span className="stat-icon">📊</span>
-                  <span>Toàn bộ</span>
+                  <span>Tổng số</span>
                 </div>
                 <div className="stat-number">{stats?.totalScans ?? scans.length}</div>
-                <div className="stat-label">Tổng lượt quét biển số</div>
+                <div className="stat-label">Tổng lượt phân loại biển số</div>
               </article>
 
               <article className="stat-card">
@@ -944,7 +1054,16 @@ export default function App() {
                   <span>Hôm nay</span>
                 </div>
                 <div className="stat-number">{stats?.todayScans ?? 0}</div>
-                <div className="stat-label">Lượt quét trong ngày</div>
+                <div className="stat-label">Lượt phân loại trong ngày</div>
+              </article>
+
+              <article className="stat-card">
+                <div className="stat-heading">
+                  <span className="stat-icon">📍</span>
+                  <span>Địa phương</span>
+                </div>
+                <div className="stat-number">{Object.keys(provinceCounts).length || 1}</div>
+                <div className="stat-label">Tỉnh / Thành phố đã nhận diện</div>
               </article>
 
               <article className="stat-card">
@@ -959,53 +1078,42 @@ export default function App() {
                 </div>
                 <div className="stat-label">Độ tin cậy trung bình AI</div>
               </article>
-
-              <article className="stat-card">
-                <div className="stat-heading">
-                  <span className="stat-icon">✓</span>
-                  <span>Chuẩn hóa</span>
-                </div>
-                <div className="stat-number">100%</div>
-                <div className="stat-label">Định dạng biển số chuẩn VN</div>
-              </article>
             </section>
 
             <div className="dashboard-grid">
-              {/* Thông tin mô hình AI */}
+              {/* Phân bố địa phương */}
               <section className="panel" style={{ padding: 20 }}>
                 <div className="panel-header" style={{ padding: '0 0 14px' }}>
                   <div>
-                    <h3>Mô hình AI nhận diện biển số</h3>
-                    <p>Cấu hình luồng xử lý Computer Vision & OCR thời gian thực.</p>
+                    <h3>Top địa phương đăng ký biển số</h3>
+                    <p>Xác định tự động từ mã số đầu theo Thông tư 24/2023/TT-BCA.</p>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>1. Bộ phát hiện (Plate Detector):</strong>
-                    <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
-                      • Mô hình: <strong>YOLOv8n</strong> (Weights: <code>models/vision/best.onnx</code>)
-                      <br />• Runtime: ONNX Runtime CPU / GPU tăng tốc độ suy luận
-                      <br />• Chức năng: Khoanh vùng vị trí biển số (Bounding Box) với độ tin cậy cao
-                    </div>
-                  </div>
-
-                  <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>2. Bộ nhận dạng ký tự (Character OCR):</strong>
-                    <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
-                      • Mô hình: <strong>RapidOCR</strong> (PaddleOCR ONNX engine)
-                      <br />• Hỗ trợ: Biển số 1 dòng (ô tô) và biển số 2 dòng (xe máy, xe tải)
-                      <br />• Hậu xử lý: Regex chuẩn hóa ký tự tiếng Việt (loại bỏ nhiễu, nhầm lẫn O-0, I-1)
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {topProvinces.map(([prov, cnt]) => {
+                    const pct = Math.round((cnt / (scans.length || 1)) * 100)
+                    return (
+                      <div key={prov} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                          <strong>📍 {prov}</strong>
+                          <span style={{ color: '#666' }}>{cnt} lượt ({pct}%)</span>
+                        </div>
+                        <div style={{ height: 8, background: '#eee', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: '#6366f1', borderRadius: 4 }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {topProvinces.length === 0 && <div className="empty-state">Chưa có dữ liệu phân loại.</div>}
                 </div>
               </section>
 
-              {/* Lượt quét gần đây */}
+              {/* Lượt phân loại gần nhất */}
               <section className="panel activity-panel">
                 <div className="panel-header">
                   <div>
-                    <h3>5 lượt nhận diện gần nhất</h3>
+                    <h3>5 lượt phân loại gần nhất</h3>
                     <p>Dữ liệu cập nhật từ SQL Server</p>
                   </div>
                   <button className="text-button" onClick={() => setActiveMenu('history')}>
@@ -1018,7 +1126,7 @@ export default function App() {
                       <div className="activity-icon entry">📋</div>
                       <div className="activity-content">
                         <strong>{formatPlateDisplay(s.plate)}</strong>
-                        <span>Độ tin cậy: {(s.confidence * 100).toFixed(1)}%</span>
+                        <span>{s.vehicleType || 'Phương tiện'} · {(s.confidence * 100).toFixed(1)}%</span>
                       </div>
                       <time>{formatDateTime(s.scanTime)}</time>
                     </div>
@@ -1037,8 +1145,8 @@ export default function App() {
           <section className="panel full-panel">
             <div className="panel-header">
               <div>
-                <h3>Kiến trúc hệ thống nhận diện biển số xe (3 lớp)</h3>
-                <p>Hệ thống hoạt động theo mô hình phân tán độc lập và hiệu năng cao.</p>
+                <h3>Hệ thống Phân loại & Nhận diện Biển số xe (3 lớp)</h3>
+                <p>Toàn bộ kiến trúc và quy trình phân loại từ hình ảnh sang thông tin pháp lý.</p>
               </div>
               <span className={connected ? 'status-pill status-open' : 'status-pill status-closed'}>
                 {connected ? 'Tất cả dịch vụ hoạt động' : 'Kiểm tra kết nối'}
@@ -1051,12 +1159,16 @@ export default function App() {
                 <dd>React 19 + TypeScript + Vite (Port 5173)</dd>
               </div>
               <div>
-                <dt>Dịch vụ AI (Python Vision Service)</dt>
-                <dd>Flask + YOLOv8 ONNX Runtime + RapidOCR (Port 5000)</dd>
+                <dt>Mô hình phát hiện biển số (Detector)</dt>
+                <dd>YOLOv8n ONNX Runtime (models/vision/best.onnx)</dd>
               </div>
               <div>
-                <dt>Mô hình phát hiện biển số</dt>
-                <dd>YOLOv8n trained weights (models/vision/best.onnx)</dd>
+                <dt>Mô hình đọc ký tự (OCR Engine)</dt>
+                <dd>RapidOCR (DBNet + SVTR/CRNN tiếng Việt)</dd>
+              </div>
+              <div>
+                <dt>Thuật toán phân loại (Classifier)</dt>
+                <dd>src/vision/plate_classifier.py (Phân loại 63 tỉnh thành, màu sắc HSV, nhóm xe, phong thủy)</dd>
               </div>
               <div>
                 <dt>API Nghiệp vụ (Backend Web API)</dt>
@@ -1068,14 +1180,14 @@ export default function App() {
               </div>
               <div>
                 <dt>Trạng thái kết nối SQL Server</dt>
-                <dd>{connected ? `Đã đồng bộ thành công (${scans.length} lượt quét trong CSDL)` : 'Không thể kết nối'}</dd>
+                <dd>{connected ? `Đã đồng bộ thành công (${scans.length} lượt phân loại trong CSDL)` : 'Không thể kết nối'}</dd>
               </div>
             </dl>
           </section>
         )}
 
         <footer className="footer">
-          <span>ALPR System · Hệ thống nhận diện biển số xe</span>
+          <span>ALPR System · Hệ thống phân loại & nhận diện biển số xe</span>
           <span>YOLOv8 · RapidOCR · ASP.NET Core · SQL Server · React</span>
         </footer>
       </main>

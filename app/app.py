@@ -31,7 +31,11 @@ if ROOT_DIR not in sys.path:
 # EXISTING ML / OCR / PARKING MODULES
 # ============================================================
 
+import cv2
+import numpy as np
+
 from src.parking.penalty import compute_penalty
+from src.vision.plate_classifier import classify_license_plate
 from src.vision.plate_ocr import (
     is_valid_vn_plate,
     normalize_plate,
@@ -1073,6 +1077,22 @@ def scan_plate():
                 crop_file
             )
 
+        # Phân loại biển số xe đa tiêu chí
+        crop_img_cv = None
+        if ocr.get("crop_jpeg_b64"):
+            try:
+                crop_bytes = base64.b64decode(ocr["crop_jpeg_b64"])
+                nparr = np.frombuffer(crop_bytes, np.uint8)
+                crop_img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            except Exception:
+                crop_img_cv = None
+
+        classification = classify_license_plate(
+            ocr.get("plate", ""),
+            crop_img=crop_img_cv,
+            bbox=ocr.get("bbox"),
+        )
+
         record = {
             "id": stamp,
             "plate": (
@@ -1093,7 +1113,8 @@ def scan_plate():
                 image_path
             ),
             "crop_path": crop_path,
-            "vehicle_type": vehicle_type,
+            "vehicle_type": classification.get("vehicle_category", "Phương tiện"),
+            "classification": classification,
             "extra": {
                 "bbox": ocr.get(
                     "bbox"
@@ -1120,11 +1141,11 @@ def scan_plate():
                     "/api/PlateScans",
                     payload={
                         "plate": detected_plate,
-                        "vehicleType": vehicle_type,
+                        "vehicleType": classification.get("vehicle_category") or "Phương tiện",
                         "confidence": float(ocr.get("confidence") or 1.0),
                         "imagePath": f"/scan-image/{image_path.name}",
                         "cropImagePath": f"/scan-image/{Path(crop_path).name}" if crop_path else None,
-                        "note": ocr.get("engine") or "YOLOv8 + RapidOCR",
+                        "note": classification.get("classification_summary") or "YOLOv8 + RapidOCR",
                     },
                 )
         except Exception as be_exc:
@@ -1148,7 +1169,8 @@ def scan_plate():
                 "message": ocr.get(
                     "message"
                 ),
-                "vehicle_type": vehicle_type,
+                "vehicle_type": classification.get("vehicle_category", "Phương tiện"),
+                "classification": classification,
                 "raw_candidates": ocr.get(
                     "raw_candidates",
                     [],
@@ -1278,6 +1300,12 @@ def preview_plate():
             or ""
         )
 
+        classification = classify_license_plate(
+            plate,
+            crop_img=None,
+            bbox=ocr.get("bbox"),
+        )
+
         return jsonify(
             {
                 "status": "success",
@@ -1297,7 +1325,8 @@ def preview_plate():
                     "message",
                     "",
                 ),
-                "vehicle_type": "",
+                "vehicle_type": classification.get("vehicle_category", ""),
+                "classification": classification,
                 "bbox": ocr.get(
                     "bbox"
                 ),
