@@ -18,13 +18,17 @@ data/labeled_plates/
 
 Use the same group name across color folders for images from the same session. Avoid near-duplicate frames in different groups. Keep each label folder restricted to its named color and manually review ambiguous, covered, overexposed, or non-standard plates before training. Images directly in a class folder are treated as one `ungrouped` capture group, so the real-data holdout will keep that entire group separate.
 
-Train and inspect the generated metadata:
+Train and compare Random Forest with KNN on the same features and the same train/test split:
 
 ```powershell
 python train_plate_color.py
 ```
 
-The trainer uses generated plates for training augmentation, but when real labeled samples exist it holds out complete capture groups for evaluation. Metadata records sample counts, evaluation source, model SHA-256/version, training configuration and runtime versions. Probability outputs are not calibrated and should not be interpreted as statistically reliable confidence until calibration is evaluated with a separate real validation set.
+The trainer uses generated plates for training augmentation, but when real labeled samples exist it holds out complete capture groups for evaluation. Random Forest and KNN use the exact same train and test samples. KNN applies a `StandardScaler` fitted only on the training data before using five distance-weighted neighbors. Accuracy, macro-Precision, macro-Recall and macro-F1 for both models are saved to `outputs/results/classification_results.csv`; the comparison ranks macro-F1 first, then uses accuracy, macro-Precision and macro-Recall to break ties. The machine-readable comparison and its caveat are in `outputs/results/algorithm_comparison.json`. Model artifacts are saved as `models/classification/plate_color_model.pkl` (Random Forest) and `models/classification/plate_color_knn_model.pkl` (KNN).
+
+The color-classification API continues to return Random Forest in its existing top-level fields and adds a `comparison` object containing the KNN prediction for the same crop. The upload result screen shows both predictions and the aggregate metrics from the shared test set. A single image has no known correct label, so these two predictions alone cannot establish which algorithm performs better. Use the held-out labeled images and comparison report for that conclusion. If the report says `synthetic_only`, it explicitly cannot establish camera performance; collect and manually label real images first. Searching the web for a plate number may help identify an individual vehicle, but it does not provide a reliable ground-truth color label for model evaluation.
+
+Metadata records sample counts, evaluation source, model SHA-256/version, training configuration and runtime versions. Probability outputs are not calibrated and should not be interpreted as statistically reliable confidence until calibration is evaluated with a separate real validation set.
 
 ## Full ALPR benchmark on real images
 

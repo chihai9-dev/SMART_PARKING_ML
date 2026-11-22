@@ -6,7 +6,7 @@ SmartParking tập trung vào hai chức năng chính: **nhận diện ký tự 
 
 - Quét biển số trực tiếp bằng webcam hoặc tải ảnh lên.
 - Phát hiện vùng biển số bằng YOLOv8 và đọc ký tự bằng RapidOCR.
-- Phân loại màu nền biển số bằng Random Forest trên 10 đặc trưng HSV: trắng, vàng, xanh và đỏ.
+- Phân loại màu nền biển số bằng Random Forest và KNN trên cùng 10 đặc trưng HSV: trắng, vàng, xanh và đỏ; API trả về dự đoán của cả hai thuật toán.
 - Hiển thị kết quả nhận diện, độ tin cậy và ảnh biển số được cắt.
 - Lưu, tra cứu, lọc và xóa lịch sử nhận diện trong SQL Server.
 - Swagger UI để kiểm tra .NET Web API.
@@ -16,7 +16,7 @@ SmartParking tập trung vào hai chức năng chính: **nhận diện ký tự 
 | Thành phần | Công nghệ | Vai trò |
 |---|---|---|
 | Frontend | React, TypeScript, Vite, Tailwind CSS | Camera, tải ảnh, kết quả và lịch sử |
-| AI Service | Python, Flask, OpenCV, YOLOv8, RapidOCR, Random Forest | Phát hiện vùng biển số, đọc ký tự và phân loại màu nền |
+| AI Service | Python, Flask, OpenCV, YOLOv8, RapidOCR, Random Forest, KNN | Phát hiện vùng biển số, đọc ký tự và phân loại màu nền |
 | Backend | .NET 10, Dapper, Swagger | API quản lý lượt nhận diện |
 | Database | Microsoft SQL Server | Lưu lịch sử nhận diện trong bảng PlateScans |
 
@@ -58,7 +58,9 @@ Sau đó chạy:
 python train_plate_color.py
 ```
 
-Mô hình được lưu tại `models/classification/best_classification_model.pkl`. Kết quả đánh giá và biểu đồ được lưu trong thư mục `outputs/`. Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để báo cáo chất lượng; ảnh tổng hợp chỉ được dùng để huấn luyện. Nếu chưa có ảnh thật, metadata ghi rõ kết quả chỉ là đánh giá trên dữ liệu tổng hợp và không đại diện cho hiệu năng camera.
+Hai mô hình được lưu tại `models/classification/plate_color_model.pkl` (Random Forest) và `models/classification/plate_color_knn_model.pkl` (KNN). KNN dùng StandardScaler được fit trên tập huấn luyện và 5 láng giềng gần nhất. Kết quả Accuracy, Precision macro, Recall macro và F1 macro trên cùng tập kiểm thử được ghi vào `outputs/results/classification_results.csv` và kết luận vào `outputs/results/algorithm_comparison.json`. Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để so sánh; ảnh tổng hợp chỉ tham gia huấn luyện. Nếu chưa có ảnh thật, báo cáo ghi rõ chỉ đánh giá bằng ảnh tổng hợp và không đại diện cho hiệu năng camera. API trả kết quả Random Forest ở các trường hiện có và thêm dự đoán KNN trong `comparison`. Màn hình tải ảnh hiển thị hai bảng dự đoán và bảng metric của hai mô hình.
+
+Nếu huấn luyện lại trong khi Python AI Service đang chạy, hãy khởi động lại service để nạp các model artifact mới.
 
 Lưu ý: nếu chưa có ảnh thật đã gán nhãn, chương trình có thể tạo dữ liệu tổng hợp để kiểm tra pipeline. Kết quả đánh giá trên dữ liệu tổng hợp không đại diện cho độ chính xác khi chạy camera thực tế.
 

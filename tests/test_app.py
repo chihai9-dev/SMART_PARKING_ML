@@ -37,7 +37,11 @@ class TestBackendConfidence(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()["color_code"], "Yellow")
+        payload = response.get_json()
+        self.assertEqual(payload["color_code"], "Yellow")
+        self.assertEqual(
+            payload["comparison"]["algorithm"], "KNeighborsClassifier"
+        )
 
     def test_scan_persists_structured_color_and_zero_confidence(self):
         color = {
@@ -56,6 +60,13 @@ class TestBackendConfidence(unittest.TestCase):
                     "bbox": [0, 0, 10, 10],
                 }),
                 patch("app.app._classify_crop_b64", return_value=color),
+                patch("app.app._read_algorithm_comparison", return_value={
+                    "evaluation_source": "real",
+                    "algorithms": {
+                        "RandomForestClassifier": {"metrics": {"accuracy": 0.9}},
+                        "KNeighborsClassifier": {"metrics": {"accuracy": 0.85}},
+                    },
+                }),
                 patch("app.app._backend_request", return_value={}) as backend_request,
             ):
                 response = app.test_client().post(
@@ -70,6 +81,9 @@ class TestBackendConfidence(unittest.TestCase):
         self.assertEqual(payload["plateColorCode"], "Yellow")
         self.assertEqual(payload["plateColorLabel"], "Biển Vàng")
         self.assertEqual(payload["plateColorConfidence"], 0.87)
+        response_payload = response.get_json()
+        self.assertIn("RandomForestClassifier", response_payload["algorithm_comparison"]["algorithms"])
+        self.assertIn("KNeighborsClassifier", response_payload["algorithm_comparison"]["algorithms"])
 
 
 if __name__ == "__main__":

@@ -19,7 +19,11 @@ ROOT_DIR = BASE_DIR.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src.models.classification import load_color_model, predict_plate_color
+from src.models.classification import (
+    load_color_model,
+    load_knn_model,
+    predict_plate_color,
+)
 from src.vision.plate_ocr import normalize_plate, recognize_plate
 
 
@@ -30,7 +34,9 @@ SCAN_DIR = ROOT_DIR / "data" / "processed" / "scans"
 SCAN_DIR.mkdir(parents=True, exist_ok=True)
 
 COLOR_MODEL_META_PATH = ROOT_DIR / "models" / "classification" / "model_metadata.json"
+ALGORITHM_COMPARISON_PATH = ROOT_DIR / "outputs" / "results" / "algorithm_comparison.json"
 color_model = load_color_model()
+knn_color_model = load_knn_model()
 
 SMARTPARKING_API_URL = os.getenv(
     "SMARTPARKING_API_URL",
@@ -159,7 +165,11 @@ def _classify_crop_b64(crop_b64: str | None) -> dict:
         crop_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if crop_bgr is None:
             return {}
-        return predict_plate_color(color_model, crop_bgr)
+        return predict_plate_color(
+            color_model,
+            crop_bgr,
+            comparison_model=knn_color_model,
+        )
     except Exception as exc:
         print("[Warning] Không thể phân loại màu biển số: {}".format(exc))
         return {}
@@ -207,9 +217,28 @@ def classify_plate_color_only():
     if image is None:
         return jsonify({"status": "error", "message": "Không giải mã được file ảnh."}), 400
     try:
-        return jsonify({"status": "success", **predict_plate_color(color_model, image)})
+        return jsonify({
+            "status": "success",
+            **predict_plate_color(
+                color_model,
+                image,
+                comparison_model=knn_color_model,
+            ),
+        })
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+def _read_algorithm_comparison():
+    if not ALGORITHM_COMPARISON_PATH.is_file():
+        return None
+    try:
+        return json.loads(
+            ALGORITHM_COMPARISON_PATH.read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        print("[Warning] Không đọc được báo cáo so sánh mô hình: {}".format(exc))
+        return None
 
 
 @app.route("/api/scan-plate", methods=["POST"])
@@ -321,6 +350,7 @@ def scan_plate():
                 "engine": ocr.get("engine"),
                 "message": ocr.get("message"),
                 "plate_color": plate_color,
+                "algorithm_comparison": _read_algorithm_comparison(),
                 "raw_candidates": ocr.get("raw_candidates", []),
                 "bbox": ocr.get("bbox"),
                 "crop_jpeg_b64": ocr.get("crop_jpeg_b64"),

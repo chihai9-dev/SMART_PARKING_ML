@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from train_plate_color import split_color_dataset
+from train_plate_color import compare_metrics, split_color_dataset
 
 
 class TestPlateColorEvaluationSplit(unittest.TestCase):
@@ -61,6 +61,67 @@ class TestPlateColorEvaluationSplit(unittest.TestCase):
 
         self.assertEqual(evaluation_source, "synthetic_only")
         self.assertGreater(len(X_test), 0)
+
+    def test_comparison_uses_macro_f1_and_marks_synthetic_limit(self):
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": {
+                    "f1_macro": 0.8,
+                    "accuracy": 0.9,
+                    "precision_macro": 0.82,
+                    "recall_macro": 0.78,
+                },
+                "KNeighborsClassifier": {
+                    "f1_macro": 0.85,
+                    "accuracy": 0.86,
+                    "precision_macro": 0.84,
+                    "recall_macro": 0.86,
+                },
+            },
+            "synthetic_only",
+        )
+
+        self.assertEqual(comparison["winner"], "KNeighborsClassifier")
+        self.assertIn("tổng hợp", comparison["caveat"])
+
+    def test_comparison_does_not_claim_winner_when_metrics_tie(self):
+        metrics = {
+            "f1_macro": 0.8,
+            "accuracy": 0.9,
+            "precision_macro": 0.88,
+            "recall_macro": 0.79,
+        }
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": metrics,
+                "KNeighborsClassifier": metrics,
+            },
+            "real",
+        )
+
+        self.assertIsNone(comparison["winner"])
+        self.assertTrue(comparison["outcome"].startswith("Hòa"))
+
+    def test_comparison_uses_precision_then_recall_to_break_ties(self):
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": {
+                    "f1_macro": 0.8,
+                    "accuracy": 0.9,
+                    "precision_macro": 0.8,
+                    "recall_macro": 0.8,
+                },
+                "KNeighborsClassifier": {
+                    "f1_macro": 0.8,
+                    "accuracy": 0.9,
+                    "precision_macro": 0.85,
+                    "recall_macro": 0.75,
+                },
+            },
+            "real",
+        )
+
+        self.assertEqual(comparison["winner"], "KNeighborsClassifier")
 
 
 if __name__ == "__main__":

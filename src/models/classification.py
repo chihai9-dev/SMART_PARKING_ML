@@ -6,11 +6,17 @@ from typing import Any
 import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from src.features.feature_engineering import FEATURE_NAMES, extract_plate_color_features
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 # Model màu được huấn luyện và ghi metadata bởi train_plate_color.py.
 MODEL_PATH = ROOT_DIR / "models" / "classification" / "plate_color_model.pkl"
+KNN_MODEL_PATH = (
+    ROOT_DIR / "models" / "classification" / "plate_color_knn_model.pkl"
+)
 _FALLBACK_PATH = ROOT_DIR / "models" / "classification" / "best_classification_model.pkl"
 
 LOGGER = logging.getLogger(__name__)
@@ -38,6 +44,20 @@ def train_classification_model(
     return model
 
 
+def train_knn_model(X_train, y_train) -> Pipeline:
+    model = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            (
+                "classifier",
+                KNeighborsClassifier(n_neighbors=5, weights="distance"),
+            ),
+        ]
+    )
+    model.fit(X_train, y_train)
+    return model
+
+
 def _is_valid_color_model(model) -> bool:
     """Kiem tra model co dung dinh dang phan loai mau bien so khong."""
     expected = {"White", "Yellow", "Blue", "Red"}
@@ -47,6 +67,28 @@ def _is_valid_color_model(model) -> bool:
         and actual == expected
         and getattr(model, "n_features_in_", None) == len(FEATURE_NAMES)
     )
+
+
+def load_knn_model(
+    model_path: Path | str | None = None,
+) -> Pipeline | None:
+    path = Path(model_path) if model_path is not None else KNN_MODEL_PATH
+    if not path.is_file():
+        return None
+    try:
+        model = joblib.load(path)
+    except (OSError, ValueError, EOFError, ImportError, KeyError) as exc:
+        LOGGER.warning("Khong the tai KNN model %s: %s", path, exc)
+        return None
+    if (
+        not isinstance(model, Pipeline)
+        or not isinstance(model.named_steps.get("classifier"), KNeighborsClassifier)
+        or not _is_valid_color_model(model)
+    ):
+        LOGGER.warning("KNN model %s khong hop le.", path)
+        return None
+    LOGGER.info("Loaded plate color KNN model from %s", path)
+    return model
 
 
 def load_color_model(model_path: Path | str | None = None) -> RandomForestClassifier | None:
@@ -80,6 +122,7 @@ def load_color_model(model_path: Path | str | None = None) -> RandomForestClassi
 def predict_plate_color(
     model: Any = None,
     crop_bgr: np.ndarray | None = None,
+    comparison_model: Pipeline | None = None,
 ) -> dict[str, Any]:
     """
     Du doan mau nen bien so tu anh crop BGR.
@@ -131,6 +174,25 @@ def predict_plate_color(
                 for c, p in zip(classes, probabilities)
             },
         })
+        if comparison_model is not None:
+            comparison_probabilities = comparison_model.predict_proba([vector])[0]
+            comparison_classes = list(comparison_model.classes_)
+            comparison_best_idx = int(np.argmax(comparison_probabilities))
+            comparison_code = str(comparison_classes[comparison_best_idx])
+            result["comparison"] = {
+                "algorithm": "KNeighborsClassifier",
+                "color_code": comparison_code,
+                "color_label": COLOR_LABELS_VI.get(comparison_code, comparison_code),
+                "confidence": round(
+                    float(comparison_probabilities[comparison_best_idx]), 4
+                ),
+                "probabilities": {
+                    str(color): round(float(probability), 4)
+                    for color, probability in zip(
+                        comparison_classes, comparison_probabilities
+                    )
+                },
+            }
     except Exception as exc:
         LOGGER.warning("Loi khi du doan mau bien so: %s", exc)
 

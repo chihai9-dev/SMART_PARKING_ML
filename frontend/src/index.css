@@ -350,6 +350,7 @@ button:focus-visible, input:focus-visible {
   .settings-list > div { grid-template-columns: 1fr; gap: 6px; }
   .footer { flex-direction: column; }
   .alpr-preview-grid { grid-template-columns: 1fr; }
+  .classifier-results-grid { grid-template-columns: 1fr; }
   .alpr-result-header { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 420px) {
@@ -585,6 +586,84 @@ button:focus-visible, input:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 16px;
+}
+.classifier-comparison {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #f0ecf6;
+}
+.classifier-comparison > h3,
+.model-evaluation > h4,
+.classifier-result-table > h4 {
+  margin: 0 0 12px;
+  color: #3a3249;
+  font-size: 14px;
+}
+.classifier-results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.classifier-result-table {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e2d9ee;
+  border-radius: 8px;
+  background: #fcfbfe;
+}
+.classifier-result-table table,
+.model-evaluation table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.classifier-result-table th,
+.classifier-result-table td,
+.model-evaluation th,
+.model-evaluation td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #eee9f4;
+  text-align: left;
+  white-space: nowrap;
+}
+.classifier-result-table tr:last-child th,
+.classifier-result-table tr:last-child td,
+.model-evaluation tbody tr:last-child th,
+.model-evaluation tbody tr:last-child td {
+  border-bottom: 0;
+}
+.classifier-result-table th,
+.model-evaluation th {
+  color: #746c84;
+  font-weight: 600;
+}
+.classifier-result-table td {
+  color: #302842;
+}
+.model-evaluation {
+  margin-top: 18px;
+}
+.model-evaluation-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2d9ee;
+  border-radius: 8px;
+}
+.model-evaluation thead {
+  background: #f7f5fb;
+}
+.evaluation-source,
+.evaluation-outcome,
+.evaluation-caveat {
+  margin: 8px 0 0;
+  color: #746c84;
+  font-size: 12px;
+}
+.evaluation-outcome {
+  color: #302842;
+  font-weight: 700;
+}
+.evaluation-caveat {
+  color: #8a5b16;
 }
 .preview-pane {
   display: flex;

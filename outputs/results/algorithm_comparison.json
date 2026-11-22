@@ -1,0 +1,88 @@
+{
+  "metric_priority": [
+    "f1_macro",
+    "accuracy",
+    "precision_macro",
+    "recall_macro"
+  ],
+  "winner": null,
+  "outcome": "Hòa: hai thuật toán có cùng cả bốn chỉ số đánh giá.",
+  "evaluation_source": "synthetic_only",
+  "caveat": "Chỉ so sánh trên dữ liệu tổng hợp; chưa thể kết luận thuật toán nào tốt hơn trên ảnh camera thực tế.",
+  "train_samples": 800,
+  "test_samples": 200,
+  "test_real_samples": 0,
+  "test_synthetic_samples": 200,
+  "algorithms": {
+    "RandomForestClassifier": {
+      "model_version": "e78fb71d880da86f",
+      "metrics": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "confusion_matrix": [
+          [
+            50,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            50,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            50,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            50
+          ]
+        ]
+      }
+    },
+    "KNeighborsClassifier": {
+      "model_version": "db9065dea804c0d1",
+      "metrics": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "confusion_matrix": [
+          [
+            50,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            50,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            50,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            50
+          ]
+        ]
+      }
+    }
+  }
+}

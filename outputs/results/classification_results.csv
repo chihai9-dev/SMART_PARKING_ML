@@ -1,2 +1,3 @@
-model,n_estimators,max_depth,train_samples,test_samples,real_samples,synthetic_samples,evaluation_source,test_real_samples,test_synthetic_samples,model_version,model_sha256,accuracy,precision_macro,recall_macro,f1_macro
-RandomForestClassifier,200,12,800,200,0,1000,synthetic_only,0,200,e78fb71d880da86f,e78fb71d880da86f35a716e137ce131319b6b765d3bdba4c5eade2674aabd97c,1.0,1.0,1.0,1.0
+model,n_estimators,max_depth,n_neighbors,weights,feature_scaling,train_samples,test_samples,real_samples,synthetic_samples,evaluation_source,test_real_samples,test_synthetic_samples,model_version,model_sha256,accuracy,precision_macro,recall_macro,f1_macro
+RandomForestClassifier,200.0,12.0,,,none,800,200,0,1000,synthetic_only,0,200,e78fb71d880da86f,e78fb71d880da86f35a716e137ce131319b6b765d3bdba4c5eade2674aabd97c,1.0,1.0,1.0,1.0
+KNeighborsClassifier,,,5.0,distance,StandardScaler,800,200,0,1000,synthetic_only,0,200,db9065dea804c0d1,db9065dea804c0d192fdc059b0e89c78400ec767ca28425767239374569cc146,1.0,1.0,1.0,1.0

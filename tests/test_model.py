@@ -11,9 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from src.models.classification import (
+    KNN_MODEL_PATH,
+    load_knn_model,
     load_color_model,
     predict_plate_color,
     train_classification_model,
+    train_knn_model,
     MODEL_PATH,
     _FALLBACK_PATH,
 )
@@ -38,6 +41,17 @@ class TestModel(unittest.TestCase):
         model = load_color_model()
         self.assertIsNotNone(model)
         self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+
+    def test_saved_knn_model_loads(self):
+        model = load_knn_model()
+        self.assertIsNotNone(model)
+        self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+        metadata_path = KNN_MODEL_PATH.with_name("model_metadata.json")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        digest = hashlib.sha256(KNN_MODEL_PATH.read_bytes()).hexdigest()
+        self.assertEqual(
+            metadata["comparison_model"]["model_sha256"], digest
+        )
 
     def test_legacy_model_is_used_when_active_model_is_missing(self):
         with (
@@ -71,6 +85,34 @@ class TestModel(unittest.TestCase):
         result = predict_plate_color(model, image)
         self.assertEqual(result["color_code"], "Yellow")
         self.assertEqual(result["algorithm"], "RandomForestClassifier")
+
+    def test_random_forest_and_knn_predict_the_same_crop(self):
+        rng = np.random.default_rng(42)
+        centers = {
+            "White": [0.8, 0, 0, 0, 0, 0.1, 0.9, 0.1, 0.1, 0.8],
+            "Yellow": [0, 0.8, 0, 0, 0.15, 0.8, 0.8, 0.1, 0.1, 0],
+            "Blue": [0, 0, 0.8, 0, 0.6, 0.8, 0.5, 0.1, 0.1, 0],
+            "Red": [0, 0, 0, 0.8, 0.02, 0.8, 0.5, 0.1, 0.1, 0],
+        }
+        X = np.vstack([
+            rng.normal(center, 0.01, (20, 10))
+            for center in centers.values()
+        ])
+        y = np.repeat(list(centers), 20)
+        forest = train_classification_model(X, y)
+        knn = train_knn_model(X, y)
+        image = np.full((64, 160, 3), (50, 210, 240), dtype=np.uint8)
+
+        result = predict_plate_color(forest, image, comparison_model=knn)
+
+        self.assertEqual(result["algorithm"], "RandomForestClassifier")
+        self.assertEqual(result["color_code"], "Yellow")
+        self.assertEqual(
+            result["comparison"]["algorithm"], "KNeighborsClassifier"
+        )
+        self.assertEqual(result["comparison"]["color_code"], "Yellow")
+        self.assertEqual(set(result["comparison"]["probabilities"]), set(centers))
+
 
 if __name__ == "__main__":
     unittest.main()

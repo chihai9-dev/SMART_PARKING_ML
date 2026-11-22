@@ -27,6 +27,29 @@ export type PlateColorResult = {
   probabilities?: Record<string, number>
   algorithm?: string
   features?: Record<string, number>
+  comparison?: PlateColorResult
+}
+
+export type ClassifierMetrics = {
+  accuracy?: number
+  precision_macro?: number
+  recall_macro?: number
+  f1_macro?: number
+}
+
+export type AlgorithmComparisonReport = {
+  winner?: string | null
+  outcome?: string
+  evaluation_source?: string
+  caveat?: string
+  train_samples?: number
+  test_samples?: number
+  test_real_samples?: number
+  test_synthetic_samples?: number
+  algorithms?: Record<string, {
+    model_version?: string
+    metrics?: ClassifierMetrics
+  }>
 }
 
 export type PlatePreview = {
@@ -58,6 +81,7 @@ export type ScanResult = {
   database_saved?: boolean
   database_message?: string | null
   plate_color?: PlateColorResult
+  algorithm_comparison?: AlgorithmComparisonReport | null
   [key: string]: unknown
 }
 

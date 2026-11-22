@@ -6,7 +6,14 @@ import {
   previewPlate,
   scanPlate,
 } from './api'
-import type { PlateColorResult, PlatePreview, PlateScanDto, PlateScanStats, ScanResult } from './api'
+import type {
+  AlgorithmComparisonReport,
+  PlateColorResult,
+  PlatePreview,
+  PlateScanDto,
+  PlateScanStats,
+  ScanResult,
+} from './api'
 
 type MenuId = 'camera' | 'upload' | 'history' | 'dashboard' | 'settings'
 
@@ -67,6 +74,88 @@ function ColorBadge({ color }: { color?: PlateColorResult | null }) {
       {cfg.label}
       {pct && <span style={{ opacity: 0.75, fontWeight: 400, marginLeft: 2 }}>({pct})</span>}
     </span>
+  )
+}
+
+function ClassifierResultTable({ title, color }: { title: string; color?: PlateColorResult }) {
+  return (
+    <div className="classifier-result-table">
+      <h4>{title}</h4>
+      <table>
+        <tbody>
+          <tr>
+            <th>Thuat toan</th>
+            <td>{color?.algorithm ?? title}</td>
+          </tr>
+          <tr>
+            <th>Mau du doan</th>
+            <td><ColorBadge color={color} /></td>
+          </tr>
+          <tr>
+            <th>Do tin cay</th>
+            <td>{typeof color?.confidence === 'number' ? `${(color.confidence * 100).toFixed(1)}%` : '\u2014'}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function formatMetric(value?: number) {
+  return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '\u2014'
+}
+
+function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport | null }) {
+  const algorithms = [
+    { key: 'RandomForestClassifier', label: 'Random Forest' },
+    { key: 'KNeighborsClassifier', label: 'KNN' },
+  ]
+
+  return (
+    <section className="model-evaluation">
+      <h4>So sanh tren cung tap kiem thu</h4>
+      {report?.algorithms ? (
+        <>
+          <div className="model-evaluation-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mo hinh</th>
+                  <th>Accuracy</th>
+                  <th>Precision (macro)</th>
+                  <th>Recall (macro)</th>
+                  <th>F1-score (macro)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {algorithms.map(({ key, label }) => {
+                  const metrics = report.algorithms?.[key]?.metrics
+                  return (
+                    <tr key={key}>
+                      <th>{label}</th>
+                      <td>{formatMetric(metrics?.accuracy)}</td>
+                      <td>{formatMetric(metrics?.precision_macro)}</td>
+                      <td>{formatMetric(metrics?.recall_macro)}</td>
+                      <td>{formatMetric(metrics?.f1_macro)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="evaluation-source">
+            Nguon: {report.evaluation_source === 'real' ? 'anh that da gan nhan' : 'du lieu tong hop'}
+            {typeof report.test_samples === 'number' && ` · Tap kiem thu: ${report.test_samples} anh`}
+          </p>
+          {report.outcome && <p className="evaluation-outcome">{report.outcome}</p>}
+          {report.caveat && <p className="evaluation-caveat">{report.caveat}</p>}
+        </>
+      ) : (
+        <p className="evaluation-caveat">
+          Chua co bao cao metric. Hay chay python train_plate_color.py de tao tap so sanh.
+        </p>
+      )}
+    </section>
   )
 }
 
@@ -687,6 +776,21 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  <section className="classifier-comparison">
+                    <h3>Ket qua phan loai mau theo tung mo hinh</h3>
+                    <div className="classifier-results-grid">
+                      <ClassifierResultTable
+                        title="Random Forest"
+                        color={uploadResult.plate_color}
+                      />
+                      <ClassifierResultTable
+                        title="KNN"
+                        color={uploadResult.plate_color?.comparison}
+                      />
+                    </div>
+                    <ModelEvaluationTable report={uploadResult.algorithm_comparison} />
+                  </section>
                 </div>
               )}
             </div>
