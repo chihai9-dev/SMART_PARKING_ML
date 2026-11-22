@@ -507,13 +507,13 @@ export default function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-logo">AI</div>
+          <div className="brand-logo">SGU</div>
           <div className="brand-copy">
-            <div className="brand-name">He thong ALPR</div>
-            <div className="brand-subtitle">Nhan dien Bien so xe</div>
+            <div className="brand-name">ALPR</div>
+            <div className="brand-subtitle">Hệ Thống Nhận diện biển số xe</div>
           </div>
         </div>
-        <div className="sidebar-section-title">CHUC NANG</div>
+        <div className="sidebar-section-title">CHỨC NĂNG</div>
         <nav className="sidebar-menu" aria-label="Menu chinh">
           {menuItems.map(item => (
             <button
@@ -529,9 +529,9 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="data-note">
             <span className="note-mark">{connected ? '\u2713' : '!'}</span>
-            <p>{connected ? `Da ket noi SQL Server (${scans.length} ban ghi).` : 'Dang kiem tra ket noi .NET Backend...'}</p>
+            <p>{connected ? `Đã kết nối với SQL Server (${scans.length} ban ghi).` : 'Đang kiểm tra kết nối với .NET Backend...'}</p>
           </div>
-          <div className="sidebar-version">YOLOv8n + RapidOCR + RandomForest Color</div>
+          <div className="sidebar-version">Design by DangkhoiJR</div>
         </div>
       </aside>
 
@@ -546,14 +546,14 @@ export default function App() {
           <div className="topbar-actions">
             <span className={'sample-label ' + (connected ? 'connected-label' : '')}>
               <span />
-              {connected ? 'SQL Server & API San sang' : 'Mat ket noi API'}
+              {connected ? 'SQL Server & API sẵn sàng' : 'Mất kết nối với API'}
             </span>
             <button className="refresh-button" onClick={() => setRefreshKey(k => k + 1)} disabled={loadingScans}>
-              Lam moi
+              Làm mới
             </button>
             <div className="profile">
-              <div className="profile-avatar">AD</div>
-              <div className="profile-info"><strong>Admin</strong><span>Quan tri vien</span></div>
+              <div className="profile-avatar">SGU</div>
+              <div className="profile-info"><strong></strong><span></span></div>
             </div>
           </div>
         </header>
