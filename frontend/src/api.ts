@@ -35,6 +35,25 @@ export type ClassifierMetrics = {
   precision_macro?: number
   recall_macro?: number
   f1_macro?: number
+  labels?: string[]
+  confusion_matrix?: number[][]
+  per_class?: Record<string, {
+    precision: number
+    recall: number
+    f1_score: number
+    support: number
+  }>
+}
+
+export type ClassifierEvaluation = {
+  mean_confidence?: number
+  mean_confidence_correct?: number | null
+  mean_confidence_incorrect?: number | null
+  median_ms_per_image?: number
+  mean_ms_per_image?: number
+  p95_ms_per_image?: number
+  timing_repeats_per_image?: number
+  timing_scope?: string
 }
 
 export type AlgorithmComparisonReport = {
@@ -49,6 +68,7 @@ export type AlgorithmComparisonReport = {
   algorithms?: Record<string, {
     model_version?: string
     metrics?: ClassifierMetrics
+    evaluation?: ClassifierEvaluation
   }>
 }
 

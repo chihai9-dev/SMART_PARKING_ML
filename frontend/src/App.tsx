@@ -8,6 +8,7 @@ import {
 } from './api'
 import type {
   AlgorithmComparisonReport,
+  ClassifierMetrics,
   PlateColorResult,
   PlatePreview,
   PlateScanDto,
@@ -105,6 +106,46 @@ function formatMetric(value?: number) {
   return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '\u2014'
 }
 
+function ConfusionMatrixTable({ title, metrics }: { title: string; metrics?: ClassifierMetrics }) {
+  const labels = metrics?.labels ?? []
+  const matrix = metrics?.confusion_matrix ?? []
+
+  return (
+    <div className="confusion-matrix-card">
+      <h5>{title}</h5>
+      {labels.length > 0 && matrix.length === labels.length ? (
+        <div className="confusion-matrix-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Mau that \ Du doan</th>
+                {labels.map(label => <th key={label}>{label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {labels.map((label, rowIndex) => (
+                <tr key={label}>
+                  <th>{label}</th>
+                  {labels.map((columnLabel, columnIndex) => (
+                    <td
+                      key={columnLabel}
+                      className={rowIndex === columnIndex ? 'confusion-diagonal' : undefined}
+                    >
+                      {matrix[rowIndex]?.[columnIndex] ?? 0}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="evaluation-caveat">Chua co ma tran nham lan.</p>
+      )}
+    </div>
+  )
+}
+
 function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport | null }) {
   const algorithms = [
     { key: 'RandomForestClassifier', label: 'Random Forest' },
@@ -125,11 +166,16 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
                   <th>Precision (macro)</th>
                   <th>Recall (macro)</th>
                   <th>F1-score (macro)</th>
+                  <th>Confidence TB*</th>
+                  <th>Latency median (ms/anh)</th>
+                  <th>Latency P95 (ms/anh)</th>
                 </tr>
               </thead>
               <tbody>
                 {algorithms.map(({ key, label }) => {
-                  const metrics = report.algorithms?.[key]?.metrics
+                  const modelResult = report.algorithms?.[key]
+                  const metrics = modelResult?.metrics
+                  const evaluation = modelResult?.evaluation
                   return (
                     <tr key={key}>
                       <th>{label}</th>
@@ -137,6 +183,9 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
                       <td>{formatMetric(metrics?.precision_macro)}</td>
                       <td>{formatMetric(metrics?.recall_macro)}</td>
                       <td>{formatMetric(metrics?.f1_macro)}</td>
+                      <td>{formatMetric(evaluation?.mean_confidence)}</td>
+                      <td>{typeof evaluation?.median_ms_per_image === 'number' ? evaluation.median_ms_per_image.toFixed(4) : '\u2014'}</td>
+                      <td>{typeof evaluation?.p95_ms_per_image === 'number' ? evaluation.p95_ms_per_image.toFixed(4) : '\u2014'}</td>
                     </tr>
                   )
                 })}
@@ -149,6 +198,18 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
           </p>
           {report.outcome && <p className="evaluation-outcome">{report.outcome}</p>}
           {report.caveat && <p className="evaluation-caveat">{report.caveat}</p>}
+          <p className="evaluation-caveat">
+            * Confidence la xac suat trung binh, chua hieu chuan; latency chi do phan loai mau, khong gom OCR/phat hien bien.
+          </p>
+          <div className="confusion-matrices-grid">
+            {algorithms.map(({ key, label }) => (
+              <ConfusionMatrixTable
+                key={key}
+                title={`Ma tran nham lan - ${label}`}
+                metrics={report.algorithms?.[key]?.metrics}
+              />
+            ))}
+          </div>
         </>
       ) : (
         <p className="evaluation-caveat">

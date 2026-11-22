@@ -4,6 +4,7 @@ import json
 import hashlib
 import platform
 import random
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 import cv2
@@ -138,8 +139,8 @@ def split_color_dataset(X, y, sources, groups=None, test_size=0.2, random_state=
     return X_train, X_test, y_train, y_test, "synthetic_only"
 
 
-def compare_metrics(metrics_by_algorithm, evaluation_source):
-    """Rank by macro-F1, then use accuracy, precision, and recall as tie-breakers."""
+def compare_metrics(metrics_by_algorithm, evaluation_source, evaluation_by_algorithm=None):
+    """Rank model quality first and use a material speed gain only as a quality tie-breaker."""
     ranked = sorted(
         metrics_by_algorithm.items(),
         key=lambda item: (
@@ -152,18 +153,60 @@ def compare_metrics(metrics_by_algorithm, evaluation_source):
     )
     first_name, first_metrics = ranked[0]
     second_name, second_metrics = ranked[1]
-    if (
+    quality_tied = (
         first_metrics["f1_macro"] == second_metrics["f1_macro"]
         and first_metrics["accuracy"] == second_metrics["accuracy"]
         and first_metrics["precision_macro"] == second_metrics["precision_macro"]
         and first_metrics["recall_macro"] == second_metrics["recall_macro"]
-    ):
-        winner = None
-        outcome = "Hòa: hai thuật toán có cùng cả bốn chỉ số đánh giá."
+    )
+    winner = first_name
+    decision_basis = "quality_metrics"
+    if quality_tied:
+        latencies = {
+            name: values.get("median_ms_per_image")
+            for name, values in (evaluation_by_algorithm or {}).items()
+        }
+        rf_latency = latencies.get("RandomForestClassifier")
+        knn_latency = latencies.get("KNeighborsClassifier")
+        faster_name = None
+        slower_latency = None
+        faster_latency = None
+        if (
+            isinstance(rf_latency, (int, float))
+            and isinstance(knn_latency, (int, float))
+            and rf_latency > 0
+            and knn_latency > 0
+        ):
+            if rf_latency < knn_latency:
+                faster_name, faster_latency, slower_latency = (
+                    "RandomForestClassifier", rf_latency, knn_latency
+                )
+            elif knn_latency < rf_latency:
+                faster_name, faster_latency, slower_latency = (
+                    "KNeighborsClassifier", knn_latency, rf_latency
+                )
+        speed_gain_percent = (
+            (slower_latency - faster_latency) / slower_latency * 100
+            if slower_latency is not None
+            else 0.0
+        )
+        if speed_gain_percent >= 5:
+            winner = faster_name
+            decision_basis = "inference_speed_tiebreak"
+            outcome = (
+                f"Hai mô hình bằng nhau về bốn metric chất lượng; {faster_name} "
+                f"nhanh hơn khoảng {speed_gain_percent:.1f}% theo median thời gian "
+                "phân loại trên tập benchmark này."
+            )
+        else:
+            winner = None
+            outcome = (
+                "Hòa về bốn metric chất lượng; chênh lệch tốc độ dưới ngưỡng "
+                "5%, chưa đủ để chọn mô hình nhanh hơn."
+            )
     else:
-        winner = first_name
         outcome = (
-            f"{first_name} tốt hơn trên tập đánh giá theo macro-F1 "
+            f"{first_name} có kết quả chất lượng cao hơn theo macro-F1 "
             "(accuracy, macro-Precision, macro-Recall dùng lần lượt để phân xử khi hòa)."
         )
 
@@ -183,12 +226,63 @@ def compare_metrics(metrics_by_algorithm, evaluation_source):
             "accuracy",
             "precision_macro",
             "recall_macro",
+            "median_ms_per_image_if_quality_metrics_tie",
         ],
+        "decision_basis": decision_basis,
+        "latency_tiebreak_minimum_gain_percent": 5,
         "winner": winner,
         "outcome": outcome,
         "evaluation_source": evaluation_source,
         "caveat": caveat,
     }
+
+
+def evaluate_models_runtime(models, X, y_true, repeats=5):
+    """Measure confidence and interleaved per-crop latency for fair comparison."""
+    evaluations = {}
+    latency_samples = {name: [] for name in models}
+    for name, model in models.items():
+        probabilities = model.predict_proba(X)
+        class_labels = np.asarray(model.classes_)
+        predicted = class_labels[np.argmax(probabilities, axis=1)]
+        confidence = np.max(probabilities, axis=1)
+        correct = predicted == np.asarray(y_true)
+        evaluations[name] = {
+            "mean_confidence": round(float(np.mean(confidence)), 4),
+            "mean_confidence_correct": (
+                round(float(np.mean(confidence[correct])), 4)
+                if np.any(correct)
+                else None
+            ),
+            "mean_confidence_incorrect": (
+                round(float(np.mean(confidence[~correct])), 4)
+                if np.any(~correct)
+                else None
+            ),
+            "timing_repeats_per_image": repeats,
+            "timing_scope": "classifier_only_excludes_image_feature_extraction",
+        }
+        for row in X[: min(5, len(X))]:
+            model.predict_proba([row])
+
+    names = list(models)
+    for repeat in range(repeats):
+        order = names if repeat % 2 == 0 else list(reversed(names))
+        for row in X:
+            for name in order:
+                started = time.perf_counter_ns()
+                models[name].predict_proba([row])
+                latency_samples[name].append(
+                    (time.perf_counter_ns() - started) / 1_000_000
+                )
+
+    for name, samples in latency_samples.items():
+        evaluations[name].update({
+            "median_ms_per_image": round(float(np.median(samples)), 4),
+            "mean_ms_per_image": round(float(np.mean(samples)), 4),
+            "p95_ms_per_image": round(float(np.percentile(samples, 95)), 4),
+        })
+    return evaluations
 
 
 def main():
@@ -210,16 +304,34 @@ def main():
         "KNeighborsClassifier": knn_model.predict(X_test.values),
     }
     metrics_by_algorithm = {
-        name: evaluate_classification(y_test, prediction)
+        name: evaluate_classification(
+            y_test, prediction, labels=sorted(THEMES)
+        )
         for name, prediction in predictions.items()
     }
+    evaluation_by_algorithm = evaluate_models_runtime(
+        {
+            "RandomForestClassifier": model,
+            "KNeighborsClassifier": knn_model,
+        },
+        X_test.values,
+        y_test,
+    )
     for name, metrics in metrics_by_algorithm.items():
+        evaluation = evaluation_by_algorithm[name]
         print(
             f"{name}: Accuracy={metrics['accuracy']} | "
-            f"F1-macro={metrics['f1_macro']}"
+            f"Precision-macro={metrics['precision_macro']} | "
+            f"Recall-macro={metrics['recall_macro']} | "
+            f"F1-macro={metrics['f1_macro']} | "
+            f"Confidence-trung-binh={evaluation['mean_confidence']} | "
+            f"Latency-median={evaluation['median_ms_per_image']} ms/anh | "
+            f"Latency-P95={evaluation['p95_ms_per_image']} ms/anh"
         )
         print(metrics["report"])
-    comparison = compare_metrics(metrics_by_algorithm, evaluation_source)
+    comparison = compare_metrics(
+        metrics_by_algorithm, evaluation_source, evaluation_by_algorithm
+    )
     print(f"Kết luận: {comparison['outcome']} {comparison['caveat']}")
     for path in (
         MODEL_PATH,
@@ -268,6 +380,12 @@ def main():
             "precision_macro": metrics["precision_macro"],
             "recall_macro": metrics["recall_macro"],
             "f1_macro": metrics["f1_macro"],
+            "mean_confidence": evaluation_by_algorithm[name]["mean_confidence"],
+            "mean_confidence_correct": evaluation_by_algorithm[name]["mean_confidence_correct"],
+            "mean_confidence_incorrect": evaluation_by_algorithm[name]["mean_confidence_incorrect"],
+            "median_ms_per_image": evaluation_by_algorithm[name]["median_ms_per_image"],
+            "mean_ms_per_image": evaluation_by_algorithm[name]["mean_ms_per_image"],
+            "p95_ms_per_image": evaluation_by_algorithm[name]["p95_ms_per_image"],
         })
     pd.DataFrame(result_rows).to_csv(CSV_OUT,index=False)
     comparison_payload = {
@@ -279,10 +397,11 @@ def main():
         "algorithms": {
             name: {
                 "model_version": model_hashes[name][:16],
+                "evaluation": evaluation_by_algorithm[name],
                 "metrics": {
                     key: value
                     for key, value in metrics.items()
-                    if key not in ("report", "labels")
+                    if key != "report"
                 },
             }
             for name, metrics in metrics_by_algorithm.items()
@@ -346,7 +465,12 @@ def main():
             "python":platform.python_version(),
             "scikit_learn":sklearn.__version__,
         },
-        "confidence_calibration":"uncalibrated_random_forest_probabilities",
+        "confidence_calibration":"uncalibrated_probabilities_for_both_classifiers",
+        "evaluation_runtime_note":(
+            "Confidence is the mean maximum class probability and is not calibrated. "
+            "Latency is measured per crop for classifier inference only, excluding "
+            "image loading, feature extraction, plate detection and OCR."
+        ),
         "test_metrics":{k:v for k,v in metrics.items() if k not in ("report","labels")},
         "algorithm_comparison":comparison_payload,
     }

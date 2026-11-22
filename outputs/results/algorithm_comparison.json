@@ -3,10 +3,13 @@
     "f1_macro",
     "accuracy",
     "precision_macro",
-    "recall_macro"
+    "recall_macro",
+    "median_ms_per_image_if_quality_metrics_tie"
   ],
-  "winner": null,
-  "outcome": "Hòa: hai thuật toán có cùng cả bốn chỉ số đánh giá.",
+  "decision_basis": "inference_speed_tiebreak",
+  "latency_tiebreak_minimum_gain_percent": 5,
+  "winner": "KNeighborsClassifier",
+  "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.6% theo median thời gian phân loại trên tập benchmark này.",
   "evaluation_source": "synthetic_only",
   "caveat": "Chỉ so sánh trên dữ liệu tổng hợp; chưa thể kết luận thuật toán nào tốt hơn trên ảnh camera thực tế.",
   "train_samples": 800,
@@ -16,6 +19,16 @@
   "algorithms": {
     "RandomForestClassifier": {
       "model_version": "e78fb71d880da86f",
+      "evaluation": {
+        "mean_confidence": 0.9989,
+        "mean_confidence_correct": 0.9989,
+        "mean_confidence_incorrect": null,
+        "timing_repeats_per_image": 5,
+        "timing_scope": "classifier_only_excludes_image_feature_extraction",
+        "median_ms_per_image": 37.8745,
+        "mean_ms_per_image": 38.907,
+        "p95_ms_per_image": 43.764
+      },
       "metrics": {
         "accuracy": 1.0,
         "precision_macro": 1.0,
@@ -46,11 +59,53 @@
             0,
             50
           ]
+        ],
+        "per_class": {
+          "Blue": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "Red": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "White": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "Yellow": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          }
+        },
+        "labels": [
+          "Blue",
+          "Red",
+          "White",
+          "Yellow"
         ]
       }
     },
     "KNeighborsClassifier": {
-      "model_version": "db9065dea804c0d1",
+      "model_version": "b79347f44585d875",
+      "evaluation": {
+        "mean_confidence": 1.0,
+        "mean_confidence_correct": 1.0,
+        "mean_confidence_incorrect": null,
+        "timing_repeats_per_image": 5,
+        "timing_scope": "classifier_only_excludes_image_feature_extraction",
+        "median_ms_per_image": 0.9087,
+        "mean_ms_per_image": 1.0457,
+        "p95_ms_per_image": 1.5276
+      },
       "metrics": {
         "accuracy": 1.0,
         "precision_macro": 1.0,
@@ -81,6 +136,38 @@
             0,
             50
           ]
+        ],
+        "per_class": {
+          "Blue": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "Red": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "White": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          },
+          "Yellow": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1_score": 1.0,
+            "support": 50
+          }
+        },
+        "labels": [
+          "Blue",
+          "Red",
+          "White",
+          "Yellow"
         ]
       }
     }

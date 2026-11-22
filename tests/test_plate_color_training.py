@@ -9,7 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from train_plate_color import compare_metrics, split_color_dataset
+from train_plate_color import (
+    compare_metrics,
+    evaluate_models_runtime,
+    split_color_dataset,
+)
+from src.evaluation.metrics import evaluate_classification
 
 
 class TestPlateColorEvaluationSplit(unittest.TestCase):
@@ -101,6 +106,123 @@ class TestPlateColorEvaluationSplit(unittest.TestCase):
 
         self.assertIsNone(comparison["winner"])
         self.assertTrue(comparison["outcome"].startswith("Hòa"))
+
+    def test_comparison_uses_speed_only_when_quality_metrics_tie(self):
+        metrics = {
+            "f1_macro": 0.8,
+            "accuracy": 0.9,
+            "precision_macro": 0.88,
+            "recall_macro": 0.79,
+        }
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": metrics,
+                "KNeighborsClassifier": metrics,
+            },
+            "real",
+            {
+                "RandomForestClassifier": {"median_ms_per_image": 1.0},
+                "KNeighborsClassifier": {"median_ms_per_image": 1.2},
+            },
+        )
+
+        self.assertEqual(comparison["winner"], "RandomForestClassifier")
+        self.assertEqual(comparison["decision_basis"], "inference_speed_tiebreak")
+        self.assertIn("nhanh hơn", comparison["outcome"])
+
+    def test_small_speed_difference_does_not_select_a_winner(self):
+        metrics = {
+            "f1_macro": 0.8,
+            "accuracy": 0.9,
+            "precision_macro": 0.88,
+            "recall_macro": 0.79,
+        }
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": metrics,
+                "KNeighborsClassifier": metrics,
+            },
+            "real",
+            {
+                "RandomForestClassifier": {"median_ms_per_image": 1.0},
+                "KNeighborsClassifier": {"median_ms_per_image": 1.02},
+            },
+        )
+
+        self.assertIsNone(comparison["winner"])
+        self.assertIn("5%", comparison["outcome"])
+
+    def test_quality_metrics_take_priority_over_speed(self):
+        comparison = compare_metrics(
+            {
+                "RandomForestClassifier": {
+                    "f1_macro": 0.81,
+                    "accuracy": 0.9,
+                    "precision_macro": 0.8,
+                    "recall_macro": 0.82,
+                },
+                "KNeighborsClassifier": {
+                    "f1_macro": 0.85,
+                    "accuracy": 0.88,
+                    "precision_macro": 0.84,
+                    "recall_macro": 0.86,
+                },
+            },
+            "real",
+            {
+                "RandomForestClassifier": {"median_ms_per_image": 0.5},
+                "KNeighborsClassifier": {"median_ms_per_image": 1.5},
+            },
+        )
+
+        self.assertEqual(comparison["winner"], "KNeighborsClassifier")
+        self.assertEqual(comparison["decision_basis"], "quality_metrics")
+
+    def test_runtime_evaluation_reports_confidence_and_latency(self):
+        from sklearn.ensemble import RandomForestClassifier
+        from src.models.classification import train_knn_model
+
+        X_train = np.asarray([
+            [0], [0.1], [0.2], [0.3],
+            [1], [1.1], [1.2], [1.3],
+        ])
+        y_train = np.asarray(["White"] * 4 + ["Yellow"] * 4)
+        X_train_scaled_shape = np.repeat(X_train, 3, axis=1)
+        forest = RandomForestClassifier(n_estimators=5, random_state=42).fit(
+            X_train_scaled_shape, y_train
+        )
+        knn = train_knn_model(
+            X_train_scaled_shape,
+            y_train,
+        )
+        X_test = np.asarray([[0.05, 0.05, 0.05], [1.05, 1.05, 1.05]])
+        evaluation = evaluate_models_runtime(
+            {"RandomForestClassifier": forest, "KNeighborsClassifier": knn},
+            X_test,
+            np.asarray(["White", "Yellow"]),
+            repeats=2,
+        )
+
+        for model_evaluation in evaluation.values():
+            self.assertGreaterEqual(model_evaluation["mean_confidence"], 0)
+            self.assertLessEqual(model_evaluation["mean_confidence"], 1)
+            self.assertGreater(model_evaluation["median_ms_per_image"], 0)
+            self.assertGreaterEqual(
+                model_evaluation["p95_ms_per_image"],
+                model_evaluation["median_ms_per_image"],
+            )
+
+    def test_confusion_matrix_and_per_class_metrics_keep_all_color_labels(self):
+        metrics = evaluate_classification(
+            ["White", "Yellow", "White"],
+            ["White", "White", "White"],
+            labels=["Blue", "Red", "White", "Yellow"],
+        )
+
+        self.assertEqual(metrics["labels"], ["Blue", "Red", "White", "Yellow"])
+        self.assertEqual(len(metrics["confusion_matrix"]), 4)
+        self.assertEqual(metrics["per_class"]["Blue"]["support"], 0)
+        self.assertEqual(metrics["per_class"]["Yellow"]["recall"], 0.0)
 
     def test_comparison_uses_precision_then_recall_to_break_ties(self):
         comparison = compare_metrics(

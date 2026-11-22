@@ -351,6 +351,7 @@ button:focus-visible, input:focus-visible {
   .footer { flex-direction: column; }
   .alpr-preview-grid { grid-template-columns: 1fr; }
   .classifier-results-grid { grid-template-columns: 1fr; }
+  .confusion-matrices-grid { grid-template-columns: 1fr; }
   .alpr-result-header { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 420px) {
@@ -664,6 +665,48 @@ button:focus-visible, input:focus-visible {
 }
 .evaluation-caveat {
   color: #8a5b16;
+}
+.confusion-matrices-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.confusion-matrix-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e2d9ee;
+  border-radius: 8px;
+  background: #fcfbfe;
+}
+.confusion-matrix-card h5 {
+  margin: 0 0 8px;
+  color: #3a3249;
+  font-size: 12px;
+}
+.confusion-matrix-scroll {
+  overflow-x: auto;
+}
+.confusion-matrix-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: center;
+}
+.confusion-matrix-card th,
+.confusion-matrix-card td {
+  min-width: 42px;
+  padding: 7px 5px;
+  border: 1px solid #eee9f4;
+  text-align: center;
+}
+.confusion-matrix-card th {
+  background: #f7f5fb;
+}
+.confusion-matrix-card .confusion-diagonal {
+  background: #e8f5ec;
+  color: #28764d;
+  font-weight: 700;
 }
 .preview-pane {
   display: flex;
