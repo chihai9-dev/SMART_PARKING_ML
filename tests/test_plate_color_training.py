@@ -20,7 +20,7 @@ from src.evaluation.metrics import evaluate_classification
 class TestPlateColorEvaluationSplit(unittest.TestCase):
     def _dataset(self, real_per_class):
         rows, labels, sources = [], [], []
-        for label_index, label in enumerate(("White", "Yellow", "Blue", "Red")):
+        for label_index, label in enumerate(("White", "Yellow")):
             for value in range(5):
                 rows.append([0.0, label_index, value])
                 labels.append(label)

@@ -1,4 +1,4 @@
-"""Random Forest phan loai mau nen bien so: White / Yellow / Blue / Red."""
+"""Random Forest and KNN classifiers for white and yellow Vietnamese plates."""
 from __future__ import annotations
 import logging
 from pathlib import Path
@@ -24,8 +24,6 @@ LOGGER = logging.getLogger(__name__)
 COLOR_LABELS_VI = {
     "White": "Biển Trắng (Dân sự)",
     "Yellow": "Biển Vàng (Kinh doanh vận tải)",
-    "Blue": "Biển Xanh (Cơ quan Nhà nước)",
-    "Red": "Biển Đỏ (Quân đội)",
 }
 
 
@@ -59,8 +57,8 @@ def train_knn_model(X_train, y_train) -> Pipeline:
 
 
 def _is_valid_color_model(model) -> bool:
-    """Kiem tra model co dung dinh dang phan loai mau bien so khong."""
-    expected = {"White", "Yellow", "Blue", "Red"}
+    """Check that the model uses the supported white/yellow color classes."""
+    expected = {"White", "Yellow"}
     actual = set(map(str, getattr(model, "classes_", [])))
     return (
         hasattr(model, "predict_proba")
@@ -152,6 +150,33 @@ def predict_plate_color(
         result["features"] = features
     except (ValueError, TypeError) as exc:
         LOGGER.warning("Khong the trich xuat dac trung mau: %s", exc)
+        return result
+
+    dominant_unsupported_color = max(
+        features["blue_ratio"], features["red_ratio"]
+    )
+    dominant_supported_color = max(
+        features["white_ratio"], features["yellow_ratio"]
+    )
+    if (
+        dominant_unsupported_color >= 0.25
+        and dominant_unsupported_color > dominant_supported_color
+    ):
+        result.update({
+            "color_label": "Ngoài phạm vi hỗ trợ (chỉ nhận diện biển trắng/vàng)",
+            "message": "Không phân loại biển xanh/đỏ theo phạm vi đồ án.",
+            "scope_status": "unsupported_color",
+        })
+        if comparison_model is not None:
+            result["comparison"] = {
+                "algorithm": "KNeighborsClassifier",
+                "color_code": "Unknown",
+                "color_label": "Ngoài phạm vi hỗ trợ",
+                "confidence": 0.0,
+                "probabilities": {},
+                "message": "Không phân loại biển xanh/đỏ theo phạm vi đồ án.",
+                "scope_status": "unsupported_color",
+            }
         return result
 
     if model is None:

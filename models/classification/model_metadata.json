@@ -1,9 +1,18 @@
 {
-  "task": "Phân loại màu nền biển số xe (4 nhóm)",
+  "task": "Phân loại màu nền biển số xe (trắng/vàng)",
+  "scope": {
+    "supported_colors": [
+      "White",
+      "Yellow"
+    ],
+    "unsupported_colors": [
+      "Blue",
+      "Red"
+    ],
+    "unsupported_behavior": "Return Unknown without assigning a supported class."
+  },
   "algorithm": "RandomForestClassifier",
   "classes": [
-    "Blue",
-    "Red",
     "White",
     "Yellow"
   ],
@@ -11,17 +20,15 @@
   "comparison_model": {
     "algorithm": "KNeighborsClassifier",
     "model_artifact": "plate_color_knn_model.pkl",
-    "model_version": "b79347f44585d875",
-    "model_sha256": "b79347f44585d8750cb40be78793983b19c48871a6ad08be9edf96860d60eb2c",
+    "model_version": "5e1e0bfb3ad701a8",
+    "model_sha256": "5e1e0bfb3ad701a86ca7d061c66c8c99ebc34dca757f8a2ba535beeeff715bb1",
     "n_neighbors": 5,
     "weights": "distance",
     "feature_scaling": "StandardScaler"
   },
   "class_labels_vi": {
     "White": "Biển Trắng (Dân sự)",
-    "Yellow": "Biển Vàng (Kinh doanh vận tải)",
-    "Blue": "Biển Xanh (Cơ quan Nhà nước)",
-    "Red": "Biển Đỏ (Quân đội)"
+    "Yellow": "Biển Vàng (Kinh doanh vận tải)"
   },
   "features": [
     "white_ratio",
@@ -37,18 +44,18 @@
   ],
   "dataset_source_counts": {
     "real": 0,
-    "synthetic": 1000
+    "synthetic": 500
   },
   "real_capture_groups": 0,
   "evaluation_source": "synthetic_only",
   "evaluation_sample_counts": {
     "real": 0,
-    "synthetic": 200
+    "synthetic": 100
   },
   "evaluation_note": "Chỉ số chỉ phản ánh dữ liệu tổng hợp, không đại diện độ chính xác trên camera thực tế.",
-  "model_version": "e78fb71d880da86f",
-  "model_sha256": "e78fb71d880da86f35a716e137ce131319b6b765d3bdba4c5eade2674aabd97c",
-  "created_at_utc": "2026-11-22T10:45:51.394445+00:00",
+  "model_version": "21c6eefc9eca1309",
+  "model_sha256": "21c6eefc9eca130927ea082b92d665a63bc1b78b58f7b612738fb076bacb37eb",
+  "created_at_utc": "2026-11-22T14:56:10.386402+00:00",
   "feature_schema_version": "plate-color-hsv-v1",
   "training_config": {
     "n_estimators": 200,
@@ -72,42 +79,14 @@
     "confusion_matrix": [
       [
         50,
-        0,
-        0,
         0
       ],
       [
-        0,
-        50,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        50,
-        0
-      ],
-      [
-        0,
-        0,
         0,
         50
       ]
     ],
     "per_class": {
-      "Blue": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1_score": 1.0,
-        "support": 50
-      },
-      "Red": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1_score": 1.0,
-        "support": 50
-      },
       "White": {
         "precision": 1.0,
         "recall": 1.0,
@@ -136,22 +115,22 @@
     "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.6% theo median thời gian phân loại trên tập benchmark này.",
     "evaluation_source": "synthetic_only",
     "caveat": "Chỉ so sánh trên dữ liệu tổng hợp; chưa thể kết luận thuật toán nào tốt hơn trên ảnh camera thực tế.",
-    "train_samples": 800,
-    "test_samples": 200,
+    "train_samples": 400,
+    "test_samples": 100,
     "test_real_samples": 0,
-    "test_synthetic_samples": 200,
+    "test_synthetic_samples": 100,
     "algorithms": {
       "RandomForestClassifier": {
-        "model_version": "e78fb71d880da86f",
+        "model_version": "21c6eefc9eca1309",
         "evaluation": {
-          "mean_confidence": 0.9989,
-          "mean_confidence_correct": 0.9989,
+          "mean_confidence": 0.9996,
+          "mean_confidence_correct": 0.9996,
           "mean_confidence_incorrect": null,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-          "median_ms_per_image": 37.8745,
-          "mean_ms_per_image": 38.907,
-          "p95_ms_per_image": 43.764
+          "median_ms_per_image": 37.9561,
+          "mean_ms_per_image": 38.7119,
+          "p95_ms_per_image": 41.8563
         },
         "metrics": {
           "accuracy": 1.0,
@@ -161,42 +140,14 @@
           "confusion_matrix": [
             [
               50,
-              0,
-              0,
               0
             ],
             [
-              0,
-              50,
-              0,
-              0
-            ],
-            [
-              0,
-              0,
-              50,
-              0
-            ],
-            [
-              0,
-              0,
               0,
               50
             ]
           ],
           "per_class": {
-            "Blue": {
-              "precision": 1.0,
-              "recall": 1.0,
-              "f1_score": 1.0,
-              "support": 50
-            },
-            "Red": {
-              "precision": 1.0,
-              "recall": 1.0,
-              "f1_score": 1.0,
-              "support": 50
-            },
             "White": {
               "precision": 1.0,
               "recall": 1.0,
@@ -211,24 +162,22 @@
             }
           },
           "labels": [
-            "Blue",
-            "Red",
             "White",
             "Yellow"
           ]
         }
       },
       "KNeighborsClassifier": {
-        "model_version": "b79347f44585d875",
+        "model_version": "5e1e0bfb3ad701a8",
         "evaluation": {
           "mean_confidence": 1.0,
           "mean_confidence_correct": 1.0,
           "mean_confidence_incorrect": null,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-          "median_ms_per_image": 0.9087,
-          "mean_ms_per_image": 1.0457,
-          "p95_ms_per_image": 1.5276
+          "median_ms_per_image": 0.9084,
+          "mean_ms_per_image": 1.0219,
+          "p95_ms_per_image": 1.4968
         },
         "metrics": {
           "accuracy": 1.0,
@@ -238,42 +187,14 @@
           "confusion_matrix": [
             [
               50,
-              0,
-              0,
               0
             ],
             [
-              0,
-              50,
-              0,
-              0
-            ],
-            [
-              0,
-              0,
-              50,
-              0
-            ],
-            [
-              0,
-              0,
               0,
               50
             ]
           ],
           "per_class": {
-            "Blue": {
-              "precision": 1.0,
-              "recall": 1.0,
-              "f1_score": 1.0,
-              "support": 50
-            },
-            "Red": {
-              "precision": 1.0,
-              "recall": 1.0,
-              "f1_score": 1.0,
-              "support": 50
-            },
             "White": {
               "precision": 1.0,
               "recall": 1.0,
@@ -288,8 +209,6 @@
             }
           },
           "labels": [
-            "Blue",
-            "Red",
             "White",
             "Yellow"
           ]

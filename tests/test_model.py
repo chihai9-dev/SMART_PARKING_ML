@@ -3,6 +3,7 @@ import sys
 import unittest
 import hashlib
 import json
+import random
 from pathlib import Path
 from unittest.mock import patch
 import numpy as np
@@ -21,6 +22,8 @@ from src.models.classification import (
     _FALLBACK_PATH,
 )
 from src.models.tuning import tune_model
+from src.features.feature_engineering import extract_plate_color_features
+from train_plate_color import generate_synthetic_plate
 
 class TestModel(unittest.TestCase):
     def test_tune_model_returns_fitted_best_estimator(self):
@@ -40,12 +43,12 @@ class TestModel(unittest.TestCase):
     def test_saved_color_model_loads(self):
         model = load_color_model()
         self.assertIsNotNone(model)
-        self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+        self.assertEqual(set(model.classes_), {"White", "Yellow"})
 
     def test_saved_knn_model_loads(self):
         model = load_knn_model()
         self.assertIsNotNone(model)
-        self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+        self.assertEqual(set(model.classes_), {"White", "Yellow"})
         metadata_path = KNN_MODEL_PATH.with_name("model_metadata.json")
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         digest = hashlib.sha256(KNN_MODEL_PATH.read_bytes()).hexdigest()
@@ -59,8 +62,7 @@ class TestModel(unittest.TestCase):
             patch("src.models.classification._FALLBACK_PATH", _FALLBACK_PATH),
         ):
             model = load_color_model()
-        self.assertIsNotNone(model)
-        self.assertEqual(set(model.classes_), {"White", "Yellow", "Blue", "Red"})
+        self.assertIsNone(model)
 
     def test_metadata_hash_matches_active_model(self):
         metadata_path = MODEL_PATH.with_name("model_metadata.json")
@@ -87,18 +89,15 @@ class TestModel(unittest.TestCase):
         self.assertEqual(result["algorithm"], "RandomForestClassifier")
 
     def test_random_forest_and_knn_predict_the_same_crop(self):
-        rng = np.random.default_rng(42)
-        centers = {
-            "White": [0.8, 0, 0, 0, 0, 0.1, 0.9, 0.1, 0.1, 0.8],
-            "Yellow": [0, 0.8, 0, 0, 0.15, 0.8, 0.8, 0.1, 0.1, 0],
-            "Blue": [0, 0, 0.8, 0, 0.6, 0.8, 0.5, 0.1, 0.1, 0],
-            "Red": [0, 0, 0, 0.8, 0.02, 0.8, 0.5, 0.1, 0.1, 0],
-        }
-        X = np.vstack([
-            rng.normal(center, 0.01, (20, 10))
-            for center in centers.values()
-        ])
-        y = np.repeat(list(centers), 20)
+        rng = random.Random(42)
+        labels = ("White", "Yellow")
+        samples = [
+            (extract_plate_color_features(generate_synthetic_plate(label, rng))[0], label)
+            for label in labels
+            for _ in range(20)
+        ]
+        X = np.asarray([sample for sample, _ in samples])
+        y = np.asarray([label for _, label in samples])
         forest = train_classification_model(X, y)
         knn = train_knn_model(X, y)
         image = np.full((64, 160, 3), (50, 210, 240), dtype=np.uint8)
@@ -111,7 +110,28 @@ class TestModel(unittest.TestCase):
             result["comparison"]["algorithm"], "KNeighborsClassifier"
         )
         self.assertEqual(result["comparison"]["color_code"], "Yellow")
-        self.assertEqual(set(result["comparison"]["probabilities"]), set(centers))
+        self.assertEqual(set(result["comparison"]["probabilities"]), set(labels))
+
+    def test_blue_and_red_crops_are_reported_out_of_scope(self):
+        rng = np.random.default_rng(42)
+        centers = {
+            "White": [0.8, 0, 0, 0, 0, 0.1, 0.9, 0.1, 0.1, 0.8],
+            "Yellow": [0, 0.8, 0, 0, 0.15, 0.8, 0.8, 0.1, 0.1, 0],
+        }
+        X = np.vstack([
+            rng.normal(center, 0.01, (20, 10))
+            for center in centers.values()
+        ])
+        y = np.repeat(list(centers), 20)
+        forest = train_classification_model(X, y)
+        knn = train_knn_model(X, y)
+
+        for plate_bgr in ((180, 50, 20), (20, 20, 190)):
+            image = np.full((64, 160, 3), plate_bgr, dtype=np.uint8)
+            result = predict_plate_color(forest, image, comparison_model=knn)
+            self.assertEqual(result["color_code"], "Unknown")
+            self.assertEqual(result["scope_status"], "unsupported_color")
+            self.assertEqual(result["comparison"]["color_code"], "Unknown")
 
 
 if __name__ == "__main__":

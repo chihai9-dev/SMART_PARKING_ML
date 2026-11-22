@@ -58,6 +58,9 @@ const COLOR_CFG: Record<string, { bg: string; border: string; text: string; labe
 }
 
 function ColorBadge({ color }: { color?: PlateColorResult | null }) {
+  if (color?.scope_status === 'unsupported_color') {
+    return <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Ngoai pham vi ho tro</span>
+  }
   if (!color || !color.color_code || color.color_code === 'Unknown') {
     return <span style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>Chua phan loai</span>
   }
@@ -96,6 +99,12 @@ function ClassifierResultTable({ title, color }: { title: string; color?: PlateC
             <th>Do tin cay</th>
             <td>{typeof color?.confidence === 'number' ? `${(color.confidence * 100).toFixed(1)}%` : '\u2014'}</td>
           </tr>
+          {color?.message && (
+            <tr>
+              <th>Pham vi</th>
+              <td>{color.message}</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

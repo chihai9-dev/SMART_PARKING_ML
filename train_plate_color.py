@@ -38,8 +38,6 @@ COMPARISON_OUT = ROOT / "outputs" / "results" / "algorithm_comparison.json"
 THEMES = {
     "White": ((235,235,232),(20,20,20)),
     "Yellow": ((50,205,240),(20,20,20)),
-    "Blue": ((175,75,20),(245,245,245)),
-    "Red": ((35,35,195),(245,245,245)),
 }
 
 def load_font(size):
@@ -58,7 +56,7 @@ def generate_synthetic_plate(label, rng):
     draw = ImageDraw.Draw(image)
     draw.rectangle([4,4,w-5,h-5], outline=fg_rgb, width=4)
     font = load_font(rng.randint(36,46))
-    prefix = "TM" if label == "Red" else rng.choice(["29","30","51","59","80","92"])
+    prefix = rng.choice(["29","30","51","59","80","92"])
     series = rng.choice(["A","B1","C","F","H1","LD"])
     number = f"{rng.randint(100,999)}.{rng.randint(10,99)}"
     if two:
@@ -424,7 +422,12 @@ def main():
     plt.title("Feature Importance - Random Forest"); plt.xlabel("Importance")
     plt.tight_layout(); plt.savefig(FI_FIG_OUT,dpi=150); plt.close()
     metadata = {
-        "task":"Phân loại màu nền biển số xe (4 nhóm)",
+        "task":"Phân loại màu nền biển số xe (trắng/vàng)",
+        "scope":{
+            "supported_colors":["White","Yellow"],
+            "unsupported_colors":["Blue","Red"],
+            "unsupported_behavior":"Return Unknown without assigning a supported class.",
+        },
         "algorithm":"RandomForestClassifier","classes":list(model.classes_),
         "model_artifact":MODEL_PATH.name,
         "comparison_model":{

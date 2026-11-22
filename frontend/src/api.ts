@@ -26,6 +26,8 @@ export type PlateColorResult = {
   confidence?: number
   probabilities?: Record<string, number>
   algorithm?: string
+  message?: string
+  scope_status?: string
   features?: Record<string, number>
   comparison?: PlateColorResult
 }

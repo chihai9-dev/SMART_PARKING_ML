@@ -1,6 +1,6 @@
 # ALPR and plate-color ML workflow
 
-The application currently supports plate localization, OCR, four-class plate-background color prediction, and saving scan results. A successful demo is not by itself a real-world accuracy measurement. The current color model was trained with generated images; its synthetic test score must not be reported as camera performance.
+The application currently supports plate localization, OCR, white/yellow civilian plate-background color prediction, and saving scan results. Blue/red plates are outside this project's scope and are rejected when their color is clearly detected. A successful demo is not by itself a real-world accuracy measurement. Synthetic test scores must not be reported as camera performance.
 
 ## Collecting labeled color data
 
@@ -12,11 +12,9 @@ data/labeled_plates/
   White/camera_a_night_01/*.jpg
   Yellow/camera_a_day_01/*.jpg
   Yellow/camera_a_night_01/*.jpg
-  Blue/camera_a_day_01/*.jpg
-  Red/camera_a_day_01/*.jpg
 ```
 
-Use the same group name across color folders for images from the same session. Avoid near-duplicate frames in different groups. Keep each label folder restricted to its named color and manually review ambiguous, covered, overexposed, or non-standard plates before training. Images directly in a class folder are treated as one `ungrouped` capture group, so the real-data holdout will keep that entire group separate.
+Only collect white and yellow plates for this project; do not collect or classify blue/red government or military plates. Use the same group name across the white/yellow folders for images from the same session. Avoid near-duplicate frames in different groups. Keep each label folder restricted to its named color and manually review ambiguous, covered, overexposed, or non-standard plates before training. Images directly in a class folder are treated as one `ungrouped` capture group, so the real-data holdout will keep that entire group separate.
 
 Train and compare Random Forest with KNN on the same features and the same train/test split:
 

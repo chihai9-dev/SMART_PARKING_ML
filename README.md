@@ -6,7 +6,7 @@ SmartParking tập trung vào hai chức năng chính: **nhận diện ký tự 
 
 - Quét biển số trực tiếp bằng webcam hoặc tải ảnh lên.
 - Phát hiện vùng biển số bằng YOLOv8 và đọc ký tự bằng RapidOCR.
-- Phân loại màu nền biển số bằng Random Forest và KNN trên cùng 10 đặc trưng HSV: trắng, vàng, xanh và đỏ; API trả về dự đoán của cả hai thuật toán.
+- Phân loại biển số dân dụng màu trắng và vàng bằng Random Forest và KNN trên cùng 10 đặc trưng HSV. Biển xanh/đỏ ngoài phạm vi sẽ được trả về là không hỗ trợ.
 - Hiển thị kết quả nhận diện, độ tin cậy và ảnh biển số được cắt.
 - Lưu, tra cứu, lọc và xóa lịch sử nhận diện trong SQL Server.
 - Swagger UI để kiểm tra .NET Web API.
@@ -45,12 +45,10 @@ Nếu database đã được tạo từ phiên bản cũ, chạy thêm một l�
 
 ## 4. Huấn luyện mô hình phân loại màu biển số
 
-Đặt ảnh biển số đã gán nhãn vào các thư mục:
+Phạm vi đồ án là biển số màu trắng và vàng; không thu thập hoặc phân loại biển xanh/đỏ. Đặt ảnh biển số trắng/vàng đã gán nhãn vào các thư mục:
 
 - `data/labeled_plates/White/`
 - `data/labeled_plates/Yellow/`
-- `data/labeled_plates/Blue/`
-- `data/labeled_plates/Red/`
 
 Sau đó chạy:
 
@@ -58,7 +56,7 @@ Sau đó chạy:
 python train_plate_color.py
 ```
 
-Hai mô hình được lưu tại `models/classification/plate_color_model.pkl` (Random Forest) và `models/classification/plate_color_knn_model.pkl` (KNN). KNN dùng StandardScaler được fit trên tập huấn luyện và 5 láng giềng gần nhất. Kết quả Accuracy, Precision macro, Recall macro, F1 macro, confusion matrix, confidence trung bình và độ trễ phân loại trên cùng tập kiểm thử được ghi vào `outputs/results/classification_results.csv` và `outputs/results/algorithm_comparison.json`. Khi bốn metric chất lượng bằng nhau, mô hình chỉ được chọn theo tốc độ nếu median latency nhanh hơn ít nhất 5%; confidence không dùng để quyết định mô hình thắng. Confidence hiện chưa được hiệu chuẩn, latency chỉ tính thời gian phân loại màu (không gồm phát hiện biển/OCR). Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để so sánh; ảnh tổng hợp chỉ tham gia huấn luyện. Nếu chưa có ảnh thật, báo cáo ghi rõ chỉ đánh giá bằng ảnh tổng hợp và không đại diện cho hiệu năng camera. API trả kết quả Random Forest ở các trường hiện có và thêm dự đoán KNN trong `comparison`. Màn hình tải ảnh hiển thị hai bảng dự đoán cùng các metric, confidence, latency và confusion matrix.
+Hai mô hình được lưu tại `models/classification/plate_color_model.pkl` (Random Forest) và `models/classification/plate_color_knn_model.pkl` (KNN). KNN dùng StandardScaler được fit trên tập huấn luyện và 5 láng giềng gần nhất. Kết quả Accuracy, Precision macro, Recall macro, F1 macro, confusion matrix, confidence trung bình và độ trễ phân loại trên cùng tập kiểm thử được ghi vào `outputs/results/classification_results.csv` và `outputs/results/algorithm_comparison.json`. Khi bốn metric chất lượng bằng nhau, mô hình chỉ được chọn theo tốc độ nếu median latency nhanh hơn ít nhất 5%; confidence không dùng để quyết định mô hình thắng. Confidence hiện chưa được hiệu chuẩn, latency chỉ tính thời gian phân loại màu (không gồm phát hiện biển/OCR). Nếu có ảnh thật đã gán nhãn, ảnh thật được tách thành tập holdout riêng và chỉ dùng tập đó để so sánh; ảnh tổng hợp chỉ tham gia huấn luyện. Nếu chưa có ảnh thật, báo cáo ghi rõ chỉ đánh giá bằng ảnh tổng hợp và không đại diện cho hiệu năng camera. API trả kết quả Random Forest ở các trường hiện có và thêm dự đoán KNN trong `comparison`. Màn hình tải ảnh hiển thị hai bảng dự đoán cùng các metric, confidence, latency và confusion matrix. Ảnh có màu xanh/đỏ rõ rệt được đánh dấu ngoài phạm vi thay vì gán thành trắng/vàng.
 
 Nếu huấn luyện lại trong khi Python AI Service đang chạy, hãy khởi động lại service để nạp các model artifact mới.
 
