@@ -1046,7 +1046,7 @@ export default function App() {
 
         <footer className="footer">
           <span>ALPR System &middot; Hệ thống nhận diện biển số xe</span>
-          <span>YOLOv8 &middot; RapidOCR &middot; RandomForest Color &middot; ASP.NET Core &middot; SQL Server &middot; React</span>
+          <span>Design by DangkhoiJR</span>
         </footer>
       </main>
 
