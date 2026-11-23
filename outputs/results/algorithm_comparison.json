@@ -10,52 +10,52 @@
   "latency_tiebreak_minimum_gain_percent": 5,
   "winner": "KNeighborsClassifier",
   "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.6% theo median thời gian phân loại trên tập benchmark này.",
-  "evaluation_source": "synthetic_only",
-  "caveat": "Chỉ so sánh trên dữ liệu tổng hợp; chưa thể kết luận thuật toán nào tốt hơn trên ảnh camera thực tế.",
-  "train_samples": 400,
-  "test_samples": 100,
-  "test_real_samples": 0,
-  "test_synthetic_samples": 100,
+  "evaluation_source": "real",
+  "caveat": "Kết luận chỉ áp dụng cho tập ảnh thật được giữ riêng; cần kiểm tra thêm trên các phiên chụp độc lập khác.",
+  "train_samples": 1706,
+  "test_samples": 296,
+  "test_real_samples": 296,
+  "test_synthetic_samples": 0,
   "algorithms": {
     "RandomForestClassifier": {
-      "model_version": "21c6eefc9eca1309",
+      "model_version": "a87a1fc964671ddf",
       "evaluation": {
-        "mean_confidence": 0.9996,
-        "mean_confidence_correct": 0.9996,
-        "mean_confidence_incorrect": null,
+        "mean_confidence": 0.995,
+        "mean_confidence_correct": 0.995,
+        "mean_confidence_incorrect": 1.0,
         "timing_repeats_per_image": 5,
         "timing_scope": "classifier_only_excludes_image_feature_extraction",
-        "median_ms_per_image": 37.9561,
-        "mean_ms_per_image": 38.7119,
-        "p95_ms_per_image": 41.8563
+        "median_ms_per_image": 38.0095,
+        "mean_ms_per_image": 39.0881,
+        "p95_ms_per_image": 43.0384
       },
       "metrics": {
-        "accuracy": 1.0,
-        "precision_macro": 1.0,
-        "recall_macro": 1.0,
-        "f1_macro": 1.0,
+        "accuracy": 0.9966,
+        "precision_macro": 0.9966,
+        "recall_macro": 0.9967,
+        "f1_macro": 0.9966,
         "confusion_matrix": [
           [
-            50,
+            145,
             0
           ],
           [
-            0,
-            50
+            1,
+            150
           ]
         ],
         "per_class": {
           "White": {
-            "precision": 1.0,
+            "precision": 0.9932,
             "recall": 1.0,
-            "f1_score": 1.0,
-            "support": 50
+            "f1_score": 0.9966,
+            "support": 145
           },
           "Yellow": {
             "precision": 1.0,
-            "recall": 1.0,
-            "f1_score": 1.0,
-            "support": 50
+            "recall": 0.9934,
+            "f1_score": 0.9967,
+            "support": 151
           }
         },
         "labels": [
@@ -65,44 +65,44 @@
       }
     },
     "KNeighborsClassifier": {
-      "model_version": "5e1e0bfb3ad701a8",
+      "model_version": "b8e34945a0b50f4d",
       "evaluation": {
-        "mean_confidence": 1.0,
-        "mean_confidence_correct": 1.0,
-        "mean_confidence_incorrect": null,
+        "mean_confidence": 0.9993,
+        "mean_confidence_correct": 0.9993,
+        "mean_confidence_incorrect": 1.0,
         "timing_repeats_per_image": 5,
         "timing_scope": "classifier_only_excludes_image_feature_extraction",
-        "median_ms_per_image": 0.9084,
-        "mean_ms_per_image": 1.0219,
-        "p95_ms_per_image": 1.4968
+        "median_ms_per_image": 0.9136,
+        "mean_ms_per_image": 1.0477,
+        "p95_ms_per_image": 1.6173
       },
       "metrics": {
-        "accuracy": 1.0,
-        "precision_macro": 1.0,
-        "recall_macro": 1.0,
-        "f1_macro": 1.0,
+        "accuracy": 0.9966,
+        "precision_macro": 0.9966,
+        "recall_macro": 0.9967,
+        "f1_macro": 0.9966,
         "confusion_matrix": [
           [
-            50,
+            145,
             0
           ],
           [
-            0,
-            50
+            1,
+            150
           ]
         ],
         "per_class": {
           "White": {
-            "precision": 1.0,
+            "precision": 0.9932,
             "recall": 1.0,
-            "f1_score": 1.0,
-            "support": 50
+            "f1_score": 0.9966,
+            "support": 145
           },
           "Yellow": {
             "precision": 1.0,
-            "recall": 1.0,
-            "f1_score": 1.0,
-            "support": 50
+            "recall": 0.9934,
+            "f1_score": 0.9967,
+            "support": 151
           }
         },
         "labels": [
