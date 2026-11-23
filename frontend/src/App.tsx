@@ -18,54 +18,52 @@ import type {
 type MenuId = 'camera' | 'upload' | 'history' | 'dashboard' | 'settings'
 
 const menuItems: { id: MenuId; icon: string; label: string }[] = [
-  { id: 'camera',    icon: '\uD83C\uDFA5', label: 'Quet Camera' },
-  { id: 'upload',    icon: '\uD83D\uDDBC', label: 'Tai anh nhan dien' },
-  { id: 'history',   icon: '\uD83D\uDCCB', label: 'Nhat ky nhan dien' },
-  { id: 'dashboard', icon: '\uD83D\uDCCA', label: 'Thong ke' },
-  { id: 'settings',  icon: '\u2699',       label: 'He thong' },
+  { id: 'camera',    icon: '\uD83C\uDFA5', label: 'Quét camera' },
+  { id: 'upload',    icon: '\uD83D\uDDBC', label: 'Tải ảnh nhận diện' },
+  { id: 'history',   icon: '\uD83D\uDCCB', label: 'Nhật ký nhận diện' },
+  { id: 'dashboard', icon: '\uD83D\uDCCA', label: 'Thống kê' },
+  { id: 'settings',  icon: '\u2699',       label: 'Hệ thống' },
 ]
 
 const pageDetails: Record<MenuId, { title: string; description: string }> = {
   camera: {
-    title: 'Quet Camera truc tiep',
-    description: 'Nhan dien bien so xe va phan loai mau nen theo thoi gian thuc qua webcam bang YOLOv8 va RapidOCR.',
+    title: 'Quét camera trực tiếp',
+    description: 'Nhận diện biển số xe và phân loại màu nền theo thời gian thực qua webcam bằng YOLOv8 và RapidOCR.',
   },
   upload: {
-    title: 'Tai anh & Nhan dien',
-    description: 'Tai anh len he thong, tu dong khoanh vung bien so, nhan dang ky tu, phan loai mau nen va luu vao CSDL.',
+    title: 'Tải ảnh và nhận diện',
+    description: 'Tải ảnh lên hệ thống để tự động tìm biển số, nhận dạng ký tự, phân loại màu nền và lưu kết quả.',
   },
   history: {
-    title: 'Nhat ky nhan dien',
-    description: 'Tra cuu, tim kiem va quan ly toan bo cac luot quet bien so xe da luu trong SQL Server.',
+    title: 'Nhật ký nhận diện',
+    description: 'Tra cứu, tìm kiếm và quản lý các lượt nhận diện biển số đã lưu trong SQL Server.',
   },
   dashboard: {
-    title: 'Bao cao thong ke',
-    description: 'Tong hop so luot nhan dien bien so va do tin cay cua mo hinh AI.',
+    title: 'Báo cáo thống kê',
+    description: 'Tổng hợp số lượt nhận diện biển số và độ tin cậy của mô hình AI.',
   },
   settings: {
-    title: 'Trang thai he thong',
-    description: 'Kiem tra trang thai cac dich vu: Python AI Service, .NET Web API va SQL Server.',
+    title: 'Trạng thái hệ thống',
+    description: 'Kiểm tra trạng thái các dịch vụ Python AI, .NET Web API và SQL Server.',
   },
 }
 
 // ─── Color badge helpers ───────────────────────────────────────────────────
 const COLOR_CFG: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  White:  { bg: '#f0f0f0', border: '#ccc',    text: '#333',    label: 'Trang (Dan su)' },
-  Yellow: { bg: '#fbbf24', border: '#d97706',  text: '#7c3800', label: 'Vang (Kinh doanh)' },
-  Blue:   { bg: '#1d4ed8', border: '#1e3a8a',  text: '#fff',    label: 'Xanh (Co quan NN)' },
-  Red:    { bg: '#dc2626', border: '#991b1b',  text: '#fff',    label: 'Do (Quan doi)' },
+  White:  { bg: '#f0f0f0', border: '#ccc',    text: '#333',    label: 'Trắng' },
+  Yellow: { bg: '#fbbf24', border: '#d97706',  text: '#7c3800', label: 'Vàng' },
 }
 
 function ColorBadge({ color }: { color?: PlateColorResult | null }) {
   if (color?.scope_status === 'unsupported_color') {
-    return <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Ngoai pham vi ho tro</span>
+    return <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Ngoài phạm vi hỗ trợ</span>
   }
   if (!color || !color.color_code || color.color_code === 'Unknown') {
-    return <span style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>Chua phan loai</span>
+    return <span style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>Chưa phân loại</span>
   }
   const cfg = COLOR_CFG[color.color_code]
   if (!cfg) {
-    return <span style={{ fontSize: 11, color: '#666' }}>{color.color_code}</span>
+    return <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Ngoài phạm vi hỗ trợ</span>
   }
   const pct = typeof color.confidence === 'number' ? (color.confidence * 100).toFixed(0) + '%' : ''
   return (
@@ -87,20 +85,20 @@ function ClassifierResultTable({ title, color }: { title: string; color?: PlateC
       <table>
         <tbody>
           <tr>
-            <th>Thuat toan</th>
+            <th>Thuật toán</th>
             <td>{color?.algorithm ?? title}</td>
           </tr>
           <tr>
-            <th>Mau du doan</th>
+            <th>Màu dự đoán</th>
             <td><ColorBadge color={color} /></td>
           </tr>
           <tr>
-            <th>Do tin cay</th>
+            <th>Độ tin cậy</th>
             <td>{typeof color?.confidence === 'number' ? `${(color.confidence * 100).toFixed(1)}%` : '\u2014'}</td>
           </tr>
           {color?.message && (
             <tr>
-              <th>Pham vi</th>
+              <th>Phạm vi</th>
               <td>{color.message}</td>
             </tr>
           )}
@@ -139,7 +137,7 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
 
   return (
     <section className="model-evaluation">
-      <h4>Ket luan so sanh mo hinh</h4>
+      <h4>Kết luận so sánh mô hình</h4>
       {summary && repeated ? (
         <>
           <div className="model-evaluation-table-wrap">
@@ -147,9 +145,9 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
               <thead>
                 <tr>
                   <th>Mô hình</th>
-                  <th>Accuracy TB</th>
-                  <th>Macro-F1 TB ± SD</th>
-                  <th>Tốc độ TB (ms/ảnh)</th>
+                  <th>Độ chính xác trung bình</th>
+                  <th>Macro-F1 trung bình ± độ lệch chuẩn</th>
+                  <th>Tốc độ trung bình (ms/ảnh)</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,13 +207,13 @@ function formatDateTime(value?: string | null) {
 }
 
 function formatPlate(plate?: string | null) {
-  if (!plate) return 'CHUA RO'
+  if (!plate) return 'CHƯA RÕ'
   return plate.toUpperCase()
 }
 
 function colorCodeToLabel(code?: string | null) {
   if (!code || code === 'Unknown') return null
-  return COLOR_CFG[code]?.label ?? code
+  return COLOR_CFG[code]?.label ?? 'Ngoài phạm vi hỗ trợ'
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────
@@ -242,7 +240,7 @@ export default function App() {
   const [cameraOn, setCameraOn] = useState(false)
   const [autoScanEnabled, setAutoScanEnabled] = useState(true)
   const [cameraBusy, setCameraBusy] = useState(false)
-  const [cameraStatus, setCameraStatus] = useState('Camera chua bat.')
+  const [cameraStatus, setCameraStatus] = useState('Camera chưa bật.')
   const [latestPreview, setLatestPreview] = useState<PlatePreview | null>(null)
   const [lastSavedScan, setLastSavedScan] = useState<PlateScanDto | null>(null)
   const [stableCount, setStableCount] = useState(0)
@@ -269,7 +267,7 @@ export default function App() {
       .catch((err: unknown) => {
         if (cancelled) return
         setConnected(false)
-        setErrorMessage(err instanceof Error ? err.message : 'Khong ket noi duoc .NET Backend.')
+        setErrorMessage(err instanceof Error ? err.message : 'Không thể kết nối với .NET Backend.')
       })
       .finally(() => { if (!cancelled) setLoadingScans(false) })
     return () => { cancelled = true }
@@ -280,9 +278,9 @@ export default function App() {
 
   async function startCamera() {
     setErrorMessage('')
-    setCameraStatus('Dang khoi dong webcam...')
+    setCameraStatus('Đang khởi động webcam...')
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraStatus('Trinh duyet khong ho tro webcam hoac chua cap quyen.')
+      setCameraStatus('Trình duyệt không hỗ trợ webcam hoặc chưa được cấp quyền.')
       return
     }
     try {
@@ -293,9 +291,9 @@ export default function App() {
       streamRef.current = stream
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
       setCameraOn(true)
-      setCameraStatus('Camera dang quet. Hay huong camera vao bien so xe...')
+      setCameraStatus('Camera đang quét. Hãy hướng camera vào biển số xe.')
     } catch (err) {
-      setCameraStatus(err instanceof Error ? 'Loi mo camera: ' + err.message : 'Khong the mo webcam.')
+      setCameraStatus(err instanceof Error ? 'Lỗi mở camera: ' + err.message : 'Không thể mở webcam.')
     }
   }
 
@@ -308,7 +306,7 @@ export default function App() {
     setStableCount(0)
     stablePlateCandidate.current = { plate: '', count: 0 }
     lastProcessedPlate.current = ''
-    setCameraStatus('Camera da tat.')
+    setCameraStatus('Camera đã tắt.')
   }
 
   function captureFrameBlob(): Promise<Blob> {
@@ -316,14 +314,14 @@ export default function App() {
       const video = videoRef.current
       const canvas = canvasRef.current
       if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
-        reject(new Error('Khung hinh chua san sang.')); return
+        reject(new Error('Khung hình chưa sẵn sàng.')); return
       }
       canvas.width = video.videoWidth
       canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d')
-      if (!ctx) { reject(new Error('Khong the render khung hinh.')); return }
+      if (!ctx) { reject(new Error('Không thể xử lý khung hình.')); return }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('Loi chuyen anh sang Blob.')) }, 'image/jpeg', 0.88)
+      canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('Lỗi chuyển ảnh sang Blob.')) }, 'image/jpeg', 0.88)
     })
   }
 
@@ -347,46 +345,46 @@ export default function App() {
         if (!rawPlate) {
           stablePlateCandidate.current = { plate: '', count: 0 }
           setStableCount(0)
-          setCameraStatus(preview.message || 'Dang quet... Hay dua bien so vao giua khung hinh.')
+          setCameraStatus(preview.message || 'Đang quét... Hãy đưa biển số vào giữa khung hình.')
         } else {
           const prev = stablePlateCandidate.current
           const count = prev.plate === rawPlate ? prev.count + 1 : 1
           stablePlateCandidate.current = { plate: rawPlate, count }
           setStableCount(Math.min(count, 3))
           if (count < 3) {
-            setCameraStatus(`Da phat hien ${rawPlate}. Dang xac minh on dinh (${count}/3 frame)...`)
+            setCameraStatus(`Đã phát hiện ${rawPlate}. Đang xác minh độ ổn định (${count}/3 khung hình)...`)
           } else if (lastProcessedPlate.current === rawPlate) {
-            setCameraStatus(`Bien so ${rawPlate} da duoc luu vao CSDL. Dang theo doi...`)
+            setCameraStatus(`Biển số ${rawPlate} đã được lưu vào cơ sở dữ liệu. Đang theo dõi...`)
           } else {
             lastProcessedPlate.current = rawPlate
             setCameraBusy(true)
-            setCameraStatus(`Da xac thuc ${rawPlate}! Dang luu vao SQL Server...`)
+            setCameraStatus(`Đã xác thực ${rawPlate}! Đang lưu vào SQL Server...`)
             try {
               const scanRes = await scanPlate(frameBlob)
               setRefreshKey(k => k + 1)
               const colorLabel = scanRes.plate_color?.color_code && scanRes.plate_color.color_code !== 'Unknown'
                 ? ' - ' + (colorCodeToLabel(scanRes.plate_color.color_code) ?? '')
                 : ''
-              setCameraStatus(`Da luu bien so ${rawPlate}${colorLabel} vao CSDL thanh cong!`)
+              setCameraStatus(`Đã lưu biển số ${rawPlate}${colorLabel} vào cơ sở dữ liệu thành công!`)
               setLastSavedScan({
                 scanId: Date.now(),
                 plate: scanRes.plate || rawPlate,
                 confidence: scanRes.confidence || 0.95,
                 cropImagePath: scanRes.crop_path ? `/scan-image/${(scanRes.crop_path as string).split(/[\\/]/).pop()}` : null,
                 scanTime: new Date().toISOString(),
-                note: 'Tu dong quet tu Camera',
+                note: 'Tự động quét từ camera',
                 colorCode: scanRes.plate_color?.color_code ?? null,
               })
             } catch (saveErr) {
               lastProcessedPlate.current = ''
-              setCameraStatus('Loi khi luu vao co so du lieu: ' + (saveErr instanceof Error ? saveErr.message : ''))
+              setCameraStatus('Lỗi khi lưu vào cơ sở dữ liệu: ' + (saveErr instanceof Error ? saveErr.message : ''))
             } finally {
               setCameraBusy(false)
             }
           }
         }
       } catch {
-        if (!isCancelled) setCameraStatus('Khong the quet frame camera.')
+        if (!isCancelled) setCameraStatus('Không thể quét khung hình camera.')
       } finally {
         isFrameProcessing.current = false
         if (!isCancelled) timerId = window.setTimeout(loop, 750)
@@ -399,22 +397,22 @@ export default function App() {
   async function handleManualCapture() {
     if (!cameraOn) return
     setCameraBusy(true)
-    setCameraStatus('Dang chup va nhan dien bien so...')
+    setCameraStatus('Đang chụp và nhận diện biển số...')
     try {
       const blob = await captureFrameBlob()
       const res = await scanPlate(blob)
       setUploadResult(res)
       setRefreshKey(k => k + 1)
-      setCameraStatus(`Da nhan dien: ${res.plate || 'Khong tim thay'} (${(Number(res.confidence || 0) * 100).toFixed(1)}%)`)
+      setCameraStatus(`Đã nhận diện: ${res.plate || 'Không tìm thấy'} (${(Number(res.confidence || 0) * 100).toFixed(1)}%)`)
     } catch (err) {
-      setCameraStatus(err instanceof Error ? err.message : 'Loi nhan dien.')
+      setCameraStatus(err instanceof Error ? err.message : 'Lỗi nhận diện.')
     } finally {
       setCameraBusy(false)
     }
   }
 
   function handleFileSelect(file: File) {
-    if (!file.type.startsWith('image/')) { setUploadError('Vui long chon file hinh anh (JPG, PNG, WEBP).'); return }
+    if (!file.type.startsWith('image/')) { setUploadError('Vui lòng chọn tệp hình ảnh (JPG, PNG hoặc WEBP).'); return }
     setUploadFile(file)
     setUploadPreviewUrl(URL.createObjectURL(file))
     setUploadResult(null)
@@ -430,25 +428,25 @@ export default function App() {
       setUploadResult(res)
       setRefreshKey(k => k + 1)
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Loi trong qua trinh nhan dien anh.')
+      setUploadError(err instanceof Error ? err.message : 'Lỗi trong quá trình nhận diện ảnh.')
     } finally {
       setUploadScanning(false)
     }
   }
 
   async function handleDeleteScan(id: number) {
-    if (!window.confirm(`Ban co chac chan muon xoa luot quet #${id} khong?`)) return
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa lượt quét #${id} không?`)) return
     try { await deletePlateScan(id); setRefreshKey(k => k + 1) }
-    catch (err) { alert(err instanceof Error ? err.message : 'Xoa that bai.') }
+    catch (err) { alert(err instanceof Error ? err.message : 'Xóa thất bại.') }
   }
 
   function handleExportCsv() {
-    if (scans.length === 0) { alert('Khong co du lieu de xuat file.'); return }
-    const headers = ['Ma quet', 'Bien so', 'Mau bien so', 'Do tin cay', 'Thoi gian quet', 'Ghi chu']
+    if (scans.length === 0) { alert('Không có dữ liệu để xuất tệp.'); return }
+    const headers = ['Mã lượt quét', 'Biển số', 'Màu biển số', 'Độ tin cậy', 'Thời gian quét', 'Ghi chú']
     const rows = scans.map(s => [
       s.scanId,
       `"${s.plate}"`,
-      `"${colorCodeToLabel(s.colorCode) ?? 'Chua phan loai'}"`,
+      `"${colorCodeToLabel(s.colorCode) ?? 'Chưa phân loại'}"`,
       `"${(s.confidence * 100).toFixed(1)}%"`,
       `"${formatDateTime(s.scanTime)}"`,
       `"${s.note || ''}"`,
@@ -478,11 +476,11 @@ export default function App() {
           <div className="brand-logo">SGU</div>
           <div className="brand-copy">
             <div className="brand-name">ALPR</div>
-            <div className="brand-subtitle">Hệ Thống Nhận diện biển số xe</div>
+            <div className="brand-subtitle">Hệ thống nhận diện biển số xe</div>
           </div>
         </div>
         <div className="sidebar-section-title">CHỨC NĂNG</div>
-        <nav className="sidebar-menu" aria-label="Menu chinh">
+        <nav className="sidebar-menu" aria-label="Trình đơn chính">
           {menuItems.map(item => (
             <button
               key={item.id}
@@ -497,7 +495,7 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="data-note">
             <span className="note-mark">{connected ? '\u2713' : '!'}</span>
-            <p>{connected ? `Đã kết nối với SQL Server (${scans.length} ban ghi).` : 'Đang kiểm tra kết nối với .NET Backend...'}</p>
+            <p>{connected ? `Đã kết nối với SQL Server (${scans.length} bản ghi).` : 'Đang kiểm tra kết nối với .NET Backend...'}</p>
           </div>
           <div className="sidebar-version">Design by DangkhoiJR</div>
         </div>
@@ -507,7 +505,7 @@ export default function App() {
       <main className="main-content">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">Nhan dien bien so xe <span>/</span> {currentPage.title}</div>
+            <div className="breadcrumb">Nhận diện biển số xe <span>/</span> {currentPage.title}</div>
             <h1>{currentPage.title}</h1>
             <p className="page-description">{currentPage.description}</p>
           </div>
@@ -528,7 +526,7 @@ export default function App() {
 
         {errorMessage && (
           <div className="feedback feedback-error" role="alert" style={{ marginBottom: 20 }}>
-            {errorMessage} — Vui long dam bao .NET Backend (port 5049) va Python AI Service (port 5000) dang chay.
+            {errorMessage} — Vui lòng bảo đảm .NET Backend (cổng 5049) và Python AI Service (cổng 5000) đang chạy.
           </div>
         )}
 
@@ -538,11 +536,11 @@ export default function App() {
             <section className="panel gate-panel">
               <div className="panel-header">
                 <div>
-                  <h3>Camera quet thoi gian thuc</h3>
-                  <p>Mo hinh YOLOv8 tu dong khoanh vung bien so, RapidOCR trich xuat ky tu, RandomForest phan loai mau.</p>
+                  <h3>Quét camera theo thời gian thực</h3>
+                  <p>YOLOv8 tìm vùng biển số, RapidOCR đọc ký tự, Random Forest phân loại màu nền.</p>
                 </div>
                 <span className={cameraOn ? 'status-pill status-open' : 'status-pill status-closed'}>
-                  {cameraOn ? 'Dang hoat dong' : 'Camera tat'}
+                  {cameraOn ? 'Đang hoạt động' : 'Camera đã tắt'}
                 </span>
               </div>
 
@@ -552,8 +550,8 @@ export default function App() {
                 {!cameraOn && (
                   <div className="camera-offline">
                     <div className="camera-symbol">{'\uD83D\uDCF7'}</div>
-                    <strong>Webcam chua bat</strong>
-                    <span>Nhan nut "Bat Camera" ben duoi de bat dau nhan dien.</span>
+                    <strong>Webcam chưa bật</strong>
+                    <span>Nhấn nút “Bật camera” bên dưới để bắt đầu nhận diện.</span>
                   </div>
                 )}
               </div>
@@ -561,16 +559,16 @@ export default function App() {
 
               <div className="camera-controls" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '14px 17px' }}>
                 {!cameraOn ? (
-                  <button className="primary-button" onClick={startCamera}>Bat Camera & Bat dau quet</button>
+                  <button className="primary-button" onClick={startCamera}>Bật camera và bắt đầu quét</button>
                 ) : (
                   <>
-                    <button className="secondary-button inline-button" onClick={stopCamera}>Tat Camera</button>
+                    <button className="secondary-button inline-button" onClick={stopCamera}>Tắt camera</button>
                     <button className="primary-button" onClick={handleManualCapture} disabled={cameraBusy}>
-                      {cameraBusy ? 'Dang xu ly...' : 'Chup & Luu ngay'}
+                      {cameraBusy ? 'Đang xử lý...' : 'Chụp và lưu'}
                     </button>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, marginLeft: 'auto', cursor: 'pointer' }}>
                       <input type="checkbox" checked={autoScanEnabled} onChange={e => setAutoScanEnabled(e.target.checked)} />
-                      <span>Tu dong quet lien tuc</span>
+                      <span>Tự động quét liên tục</span>
                     </label>
                   </>
                 )}
@@ -578,11 +576,11 @@ export default function App() {
 
               <div className="auto-scan-status">
                 <div className="auto-scan-copy">
-                  <strong>Trang thai nhan dien:</strong>
+                  <strong>Trạng thái nhận diện:</strong>
                   <span>{cameraStatus}</span>
                 </div>
                 {cameraOn && autoScanEnabled && (
-                  <div className="frame-progress" title={`Do on dinh: ${stableCount}/3 frame`}>
+                  <div className="frame-progress" title={`Độ ổn định: ${stableCount}/3 khung hình`}>
                     {[1, 2, 3].map(f => (
                       <span key={f} className={stableCount >= f ? 'frame-dot frame-dot-active' : 'frame-dot'} />
                     ))}
@@ -593,19 +591,19 @@ export default function App() {
               {latestPreview && latestPreview.valid && latestPreview.plate && (
                 <div className="recognition-result">
                   <div>
-                    <span className="result-caption">Bien so phat hien</span>
+                    <span className="result-caption">Biển số phát hiện</span>
                     <div style={{ marginTop: 6 }}>
                       <span className="plate-badge plate-badge-lg">{formatPlate(latestPreview.plate)}</span>
                     </div>
                   </div>
                   <div>
-                    <span className="result-caption">Dinh dang</span>
+                    <span className="result-caption">Định dạng</span>
                     <div style={{ marginTop: 8 }}>
-                      <span className="conf-pill conf-high">{'\u2713'} Hop le chuan VN</span>
+                      <span className="conf-pill conf-high">{'\u2713'} Hợp lệ theo chuẩn Việt Nam</span>
                     </div>
                   </div>
                   <div>
-                    <span className="result-caption">Do tin cay OCR</span>
+                    <span className="result-caption">Độ tin cậy OCR</span>
                     <div style={{ marginTop: 8 }}>
                       <span className="conf-pill conf-high">
                         {typeof latestPreview.confidence === 'number'
@@ -615,7 +613,7 @@ export default function App() {
                     </div>
                   </div>
                   <div>
-                    <span className="result-caption">Mau bien so</span>
+                    <span className="result-caption">Màu biển số</span>
                     <div style={{ marginTop: 8 }}>
                       <ColorBadge color={latestPreview.plate_color} />
                     </div>
@@ -629,10 +627,10 @@ export default function App() {
               <section className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3>Luot quet moi luu</h3>
-                    <p>Da ghi nhan vao SQL Server</p>
+                    <h3>Lượt quét mới nhất</h3>
+                    <p>Đã ghi nhận vào SQL Server</p>
                   </div>
-                  <button className="text-button" onClick={() => setActiveMenu('history')}>Xem tat ca <span>&rarr;</span></button>
+                  <button className="text-button" onClick={() => setActiveMenu('history')}>Xem tất cả <span>&rarr;</span></button>
                 </div>
                 <div style={{ padding: '0 17px 17px' }}>
                   {lastSavedScan ? (
@@ -643,39 +641,39 @@ export default function App() {
                       {lastSavedScan.cropImagePath && (
                         <div
                           style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid #dcd4e8', maxHeight: 120, display: 'flex', justifyContent: 'center', background: '#1a1625', cursor: 'pointer' }}
-                          onClick={() => setLightbox({ title: `Bien so ${lastSavedScan.plate}`, src: lastSavedScan.cropImagePath! })}
+                          onClick={() => setLightbox({ title: `Biển số ${lastSavedScan.plate}`, src: lastSavedScan.cropImagePath! })}
                         >
-                          <img src={lastSavedScan.cropImagePath} alt="Crop bien so" style={{ maxHeight: 120, objectFit: 'contain' }} />
+                          <img src={lastSavedScan.cropImagePath} alt="Ảnh cắt biển số" style={{ maxHeight: 120, objectFit: 'contain' }} />
                         </div>
                       )}
                       <div style={{ fontSize: 12, color: '#665d75', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div><strong>Thoi gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
-                        <div><strong>Do tin cay:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
+                        <div><strong>Thời gian:</strong> {formatDateTime(lastSavedScan.scanTime)}</div>
+                        <div><strong>Độ tin cậy:</strong> {(lastSavedScan.confidence * 100).toFixed(1)}%</div>
                         {lastSavedScan.colorCode && lastSavedScan.colorCode !== 'Unknown' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <strong>Mau bien so:</strong>
+                            <strong>Màu biển số:</strong>
                             <ColorBadge color={{ color_code: lastSavedScan.colorCode }} />
                           </div>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="empty-state">Chua co luot quet moi nao trong phien hien tai.</div>
+                    <div className="empty-state">Chưa có lượt quét mới trong phiên hiện tại.</div>
                   )}
                 </div>
               </section>
 
               <section className="panel">
                 <div className="panel-header">
-                  <div><h3>Quy trinh hoat dong</h3><p>Tu dong hoa hoan toan</p></div>
+                <div><h3>Quy trình hoạt động</h3><p>Tự động hóa nhận diện</p></div>
                 </div>
                 <div style={{ padding: '0 17px 17px', fontSize: 12, color: '#686077', lineHeight: 1.6 }}>
                   <ol style={{ paddingLeft: 18, margin: 0 }}>
-                    <li>Webcam lien tuc chup cac khung hinh gui den Python AI Service.</li>
-                    <li>Mo hinh <strong>YOLOv8</strong> phat hien vung chua bien so.</li>
-                    <li><strong>RapidOCR</strong> trich xuat chinh xac cac ky tu bien so.</li>
-                    <li><strong>RandomForest</strong> phan loai mau nen bien so (Trang/Vang/Xanh/Do).</li>
-                    <li>Khi ket qua dat <strong>3 frame lien tiep trung khop</strong>, he thong tu dong day du lieu sang <strong>.NET API</strong> de ghi vao <strong>SQL Server</strong>.</li>
+                    <li>Webcam liên tục chụp khung hình và gửi đến Python AI Service.</li>
+                    <li><strong>YOLOv8</strong> tìm vùng chứa biển số.</li>
+                    <li><strong>RapidOCR</strong> đọc các ký tự trên biển số.</li>
+                    <li><strong>Random Forest</strong> và <strong>KNN</strong> phân loại nền biển trắng hoặc vàng.</li>
+                    <li>Khi kết quả khớp trong <strong>3 khung hình liên tiếp</strong>, hệ thống gửi lượt nhận diện sang <strong>.NET API</strong> để lưu vào <strong>SQL Server</strong>.</li>
                   </ol>
                 </div>
               </section>
@@ -688,8 +686,8 @@ export default function App() {
           <section className="panel full-panel">
             <div className="panel-header">
               <div>
-                <h3>Tai anh xe & Trich xuat bien so</h3>
-                <p>Ho tro anh chup dinh dang JPG, PNG, WEBP.</p>
+                <h3>Tải ảnh và trích xuất biển số</h3>
+                <p>Hỗ trợ ảnh định dạng JPG, PNG và WEBP.</p>
               </div>
             </div>
             <div style={{ padding: '0 20px 24px' }}>
@@ -705,9 +703,9 @@ export default function App() {
                   onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }} />
                 <div className="dropzone-icon">{'\uD83D\uDCC1'}</div>
                 <div className="dropzone-title">
-                  {uploadFile ? `Da chon: ${uploadFile.name}` : 'Keo tha anh vao day hoac bam de chon file'}
+                  {uploadFile ? `Đã chọn: ${uploadFile.name}` : 'Kéo thả ảnh vào đây hoặc bấm để chọn tệp'}
                 </div>
-                <div className="dropzone-sub">Do phan giai toi uu: 640x640 tro len · Dung luong toi da 8MB</div>
+                <div className="dropzone-sub">Độ phân giải khuyến nghị: từ 640 × 640 · Dung lượng tối đa: 8 MB</div>
               </div>
 
               {uploadError && <div className="feedback feedback-error" style={{ marginTop: 14 }}>{uploadError}</div>}
@@ -715,11 +713,11 @@ export default function App() {
               {uploadFile && (
                 <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                   <button className="primary-button" onClick={handleExecuteUploadScan} disabled={uploadScanning}>
-                    {uploadScanning ? 'Dang nhan dien AI...' : 'Bat dau nhan dien'}
+                    {uploadScanning ? 'Đang nhận diện...' : 'Bắt đầu nhận diện'}
                   </button>
                   <button className="secondary-button" style={{ width: 'auto', margin: 0 }}
                     onClick={() => { setUploadFile(null); setUploadPreviewUrl(''); setUploadResult(null) }}>
-                    Huy chon
+                    Bỏ chọn
                   </button>
                 </div>
               )}
@@ -729,9 +727,9 @@ export default function App() {
                 <div className="alpr-result-card">
                   <div className="alpr-result-header">
                     <div>
-                      <strong style={{ fontSize: 16, color: '#302842' }}>Ket qua trich xuat</strong>
+                      <strong style={{ fontSize: 16, color: '#302842' }}>Kết quả nhận diện</strong>
                       <div style={{ fontSize: 12, color: '#888096', marginTop: 3 }}>
-                        Engine: {uploadResult.engine || 'YOLOv8 + RapidOCR'} &middot; {uploadResult.database_saved ? 'Da luu vao SQL Server' : 'Luu that bai'}
+                        Bộ nhận diện: {uploadResult.engine || 'YOLOv8 + RapidOCR'} &middot; {uploadResult.database_saved ? 'Đã lưu vào SQL Server' : 'Chưa lưu vào SQL Server'}
                       </div>
                     </div>
                     <div>
@@ -742,12 +740,12 @@ export default function App() {
                   <div className="alpr-preview-grid">
                     {/* Annotated image */}
                     <div className="preview-pane">
-                      <span className="preview-pane-title">Anh nhan dien (YOLOv8 Bounding Box):</span>
+                      <span className="preview-pane-title">Ảnh phát hiện biển số (khung YOLOv8):</span>
                       <div className="preview-img-box">
                         <img
                           src={uploadResult.annotated_jpeg_b64 ? `data:image/jpeg;base64,${uploadResult.annotated_jpeg_b64}` : uploadPreviewUrl}
-                          alt="Annotated detection"
-                          onClick={() => { if (uploadResult.annotated_jpeg_b64) setLightbox({ title: `Vung bien so - ${uploadResult.plate}`, src: `data:image/jpeg;base64,${uploadResult.annotated_jpeg_b64}` }) }}
+                          alt="Ảnh có đánh dấu vùng biển số"
+                          onClick={() => { if (uploadResult.annotated_jpeg_b64) setLightbox({ title: `Vùng biển số - ${uploadResult.plate}`, src: `data:image/jpeg;base64,${uploadResult.annotated_jpeg_b64}` }) }}
                           style={{ cursor: 'pointer' }}
                         />
                       </div>
@@ -755,39 +753,39 @@ export default function App() {
 
                     {/* Crop + details */}
                     <div className="preview-pane">
-                      <span className="preview-pane-title">Anh cat bien so (Cropped Plate):</span>
+                      <span className="preview-pane-title">Ảnh biển số đã cắt:</span>
                       <div className="preview-img-box" style={{ background: '#1c1926' }}>
                         {uploadResult.crop_jpeg_b64 ? (
                           <img
                             src={`data:image/jpeg;base64,${uploadResult.crop_jpeg_b64}`}
-                            alt="Cropped plate"
-                            onClick={() => setLightbox({ title: `Bien so cat - ${uploadResult.plate}`, src: `data:image/jpeg;base64,${uploadResult.crop_jpeg_b64}` })}
+                            alt="Ảnh biển số đã cắt"
+                            onClick={() => setLightbox({ title: `Biển số đã cắt - ${uploadResult.plate}`, src: `data:image/jpeg;base64,${uploadResult.crop_jpeg_b64}` })}
                             style={{ cursor: 'pointer' }}
                           />
                         ) : (
-                          <span style={{ color: '#8b849c', fontSize: 12 }}>Khong co anh cat</span>
+                          <span style={{ color: '#8b849c', fontSize: 12 }}>Không có ảnh cắt</span>
                         )}
                       </div>
 
                       {/* Info rows */}
                       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#746c84' }}>Do tin cay OCR:</span>
+                          <span style={{ color: '#746c84' }}>Độ tin cậy OCR:</span>
                           <span className="conf-pill conf-high">
                             {typeof uploadResult.confidence === 'number' ? (uploadResult.confidence * 100).toFixed(1) + '%' : '99%'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#746c84' }}>Dinh dang chuan VN:</span>
-                          <strong>{uploadResult.valid ? '\u2713 Hop le' : 'Can kiem tra'}</strong>
+                          <span style={{ color: '#746c84' }}>Định dạng biển số:</span>
+                          <strong>{uploadResult.valid ? '\u2713 Hợp lệ' : 'Cần kiểm tra'}</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#746c84' }}>Mau bien so:</span>
+                          <span style={{ color: '#746c84' }}>Màu biển số:</span>
                           <ColorBadge color={uploadResult.plate_color} />
                         </div>
                         {uploadResult.plate_color?.probabilities && (
                           <div style={{ background: '#f7f5fb', borderRadius: 6, padding: '8px 10px', marginTop: 4 }}>
-                            <div style={{ color: '#746c84', marginBottom: 4, fontWeight: 600 }}>Phan phoi xac suat:</div>
+                            <div style={{ color: '#746c84', marginBottom: 4, fontWeight: 600 }}>Xác suất dự đoán:</div>
                             {Object.entries(uploadResult.plate_color.probabilities)
                               .sort((a, b) => b[1] - a[1])
                               .map(([cls, prob]) => {
@@ -809,14 +807,14 @@ export default function App() {
 
                       <div style={{ marginTop: 14 }}>
                         <button className="primary-button" style={{ width: '100%' }} onClick={() => setActiveMenu('history')}>
-                          Xem trong Nhat ky <span>&rarr;</span>
+                          Xem trong nhật ký <span>&rarr;</span>
                         </button>
                       </div>
                     </div>
                   </div>
 
                   <section className="classifier-comparison">
-                    <h3>Ket qua phan loai mau theo tung mo hinh</h3>
+                    <h3>Kết quả phân loại màu theo mô hình</h3>
                     <div className="classifier-results-grid">
                       <ClassifierResultTable
                         title="Random Forest"
@@ -840,35 +838,35 @@ export default function App() {
           <section className="panel full-panel">
             <div className="panel-header panel-header-stackable">
               <div>
-                <h3>Danh sach cac luot nhan dien bien so</h3>
-                <p>Tong cong {scans.length} ban ghi luu trong bang PlateScans cua SQL Server.</p>
+                <h3>Danh sách lượt nhận diện biển số</h3>
+                <p>Tổng cộng {scans.length} bản ghi trong bảng PlateScans của SQL Server.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                 <label className="search-box">
                   <span aria-hidden="true">{'\u2315'}</span>
-                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tim theo bien so, ghi chu..." />
+                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tìm theo biển số hoặc ghi chú..." />
                 </label>
-                <button className="primary-button" onClick={handleExportCsv} style={{ minHeight: 35 }}>Xuat CSV</button>
+                <button className="primary-button" onClick={handleExportCsv} style={{ minHeight: 35 }}>Xuất CSV</button>
               </div>
             </div>
 
             {loadingScans ? (
-              <div className="empty-state">Dang tai nhat ky tu SQL Server...</div>
+              <div className="empty-state">Đang tải nhật ký từ SQL Server...</div>
             ) : filteredScans.length === 0 ? (
-              <div className="empty-state">Khong tim thay luot quet nao phu hop voi tu khoa tim kiem.</div>
+              <div className="empty-state">Không tìm thấy lượt quét phù hợp với từ khóa.</div>
             ) : (
               <div className="table-wrapper">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th style={{ width: 60 }}>#ID</th>
-                      <th style={{ width: 80 }}>Anh cat</th>
-                      <th>Bien so xe</th>
-                      <th>Mau bien so</th>
-                      <th>Do tin cay</th>
-                      <th>Thoi gian nhan dien</th>
-                      <th>Ghi chu</th>
-                      <th style={{ textAlign: 'center', width: 80 }}>Thao tac</th>
+                      <th style={{ width: 80 }}>Ảnh cắt</th>
+                      <th>Biển số xe</th>
+                      <th>Màu biển số</th>
+                      <th>Độ tin cậy</th>
+                      <th>Thời gian nhận diện</th>
+                      <th>Ghi chú</th>
+                      <th style={{ textAlign: 'center', width: 80 }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -877,8 +875,8 @@ export default function App() {
                         <td className="scan-id">#{scan.scanId}</td>
                         <td>
                           {scan.cropImagePath ? (
-                            <img src={scan.cropImagePath} alt="Crop" className="table-thumb" title="Bam de xem anh phong to"
-                              onClick={() => setLightbox({ title: `Chi tiet bien so ${scan.plate}`, src: scan.cropImagePath! })} />
+                            <img src={scan.cropImagePath} alt="Ảnh cắt" className="table-thumb" title="Bấm để xem ảnh phóng to"
+                              onClick={() => setLightbox({ title: `Chi tiết biển số ${scan.plate}`, src: scan.cropImagePath! })} />
                           ) : (
                             <div className="table-thumb-placeholder">N/A</div>
                           )}
@@ -893,7 +891,7 @@ export default function App() {
                         <td>{formatDateTime(scan.scanTime)}</td>
                         <td style={{ color: '#888094', fontSize: 11 }}>{scan.note || '\u2014'}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <button className="text-button" style={{ color: '#dc2626' }} onClick={() => handleDeleteScan(scan.scanId)}>Xoa</button>
+                          <button className="text-button" style={{ color: '#dc2626' }} onClick={() => handleDeleteScan(scan.scanId)}>Xóa</button>
                         </td>
                       </tr>
                     ))}
@@ -907,56 +905,56 @@ export default function App() {
         {/* ======== TAB 4: DASHBOARD ======== */}
         {activeMenu === 'dashboard' && (
           <>
-            <section className="stats-grid" aria-label="Bao cao thong ke">
+            <section className="stats-grid" aria-label="Báo cáo thống kê">
               <article className="stat-card">
-                <div className="stat-heading"><span className="stat-icon">{'\uD83D\uDCCA'}</span><span>Toan bo</span></div>
+                <div className="stat-heading"><span className="stat-icon">{'\uD83D\uDCCA'}</span><span>Toàn bộ</span></div>
                 <div className="stat-number">{stats?.totalScans ?? scans.length}</div>
-                <div className="stat-label">Tong luot quet bien so</div>
+                <div className="stat-label">Tổng lượt quét biển số</div>
               </article>
               <article className="stat-card">
-                <div className="stat-heading"><span className="stat-icon">{'\uD83D\uDCC5'}</span><span>Hom nay</span></div>
+                <div className="stat-heading"><span className="stat-icon">{'\uD83D\uDCC5'}</span><span>Hôm nay</span></div>
                 <div className="stat-number">{stats?.todayScans ?? 0}</div>
-                <div className="stat-label">Luot quet trong ngay</div>
+                <div className="stat-label">Lượt quét trong ngày</div>
               </article>
               <article className="stat-card">
-                <div className="stat-heading"><span className="stat-icon">{'\uD83C\uDFAF'}</span><span>Do chinh xac</span></div>
+                <div className="stat-heading"><span className="stat-icon">{'\uD83C\uDFAF'}</span><span>Độ tin cậy OCR</span></div>
                 <div className="stat-number">{stats?.averageConfidence ? (stats.averageConfidence * 100).toFixed(1) + '%' : '98.5%'}</div>
-                <div className="stat-label">Do tin cay trung binh AI</div>
+                <div className="stat-label">Độ tin cậy OCR trung bình</div>
               </article>
               <article className="stat-card">
-                <div className="stat-heading"><span className="stat-icon">{'\uD83C\uDFA8'}</span><span>Phan loai mau</span></div>
+                <div className="stat-heading"><span className="stat-icon">{'\uD83C\uDFA8'}</span><span>Phân loại màu</span></div>
                 <div className="stat-number">{scans.filter(s => s.colorCode && s.colorCode !== 'Unknown').length}</div>
-                <div className="stat-label">Da phan loai mau bien so</div>
+                <div className="stat-label">Lượt đã phân loại màu biển số</div>
               </article>
             </section>
 
             <div className="dashboard-grid">
               <section className="panel" style={{ padding: 20 }}>
                 <div className="panel-header" style={{ padding: '0 0 14px' }}>
-                  <div><h3>Mo hinh AI nhan dien bien so</h3><p>Cau hinh luong xu ly Computer Vision & OCR thoi gian thuc.</p></div>
+                  <div><h3>Mô hình AI nhận diện biển số</h3><p>Cấu hình xử lý thị giác máy tính và OCR theo thời gian thực.</p></div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>1. Bo phat hien (Plate Detector):</strong>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>1. Bộ phát hiện biển số:</strong>
                     <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
-                      &bull; Mo hinh: <strong>YOLOv8n</strong> (Weights: <code>models/vision/best.onnx</code>)<br />
-                      &bull; Runtime: ONNX Runtime CPU / GPU tang toc do suy luan<br />
-                      &bull; Chuc nang: Khoanh vung vi tri bien so (Bounding Box)
+                      &bull; Mô hình: <strong>YOLOv8n</strong> (trọng số: <code>models/vision/best.onnx</code>)<br />
+                      &bull; Môi trường chạy: ONNX Runtime trên CPU<br />
+                      &bull; Chức năng: xác định vị trí biển số (bounding box)
                     </div>
                   </div>
                   <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>2. Bo nhan dang ky tu (Character OCR):</strong>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>2. Bộ nhận dạng ký tự (OCR):</strong>
                     <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
-                      &bull; Mo hinh: <strong>RapidOCR</strong> (PaddleOCR ONNX engine)<br />
-                      &bull; Ho tro bien so 1 dong va 2 dong<br />
-                      &bull; Hau xu ly: Regex chuan hoa ky tu (loai O-0, I-1)
+                      &bull; Mô hình: <strong>RapidOCR</strong> (bộ máy PaddleOCR ONNX)<br />
+                      &bull; Hỗ trợ biển số một dòng và hai dòng<br />
+                      &bull; Hậu xử lý: chuẩn hóa ký tự và sửa một số lỗi OCR thường gặp
                     </div>
                   </div>
                   <div style={{ padding: 14, background: '#fcfafd', borderRadius: 8, border: '1px solid #eee8f5' }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>3. Bo phan loai mau (Color Classifier):</strong>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>3. Bộ phân loại màu biển số:</strong>
                     <div style={{ fontSize: 12, color: '#685d77', marginTop: 4 }}>
-                      &bull; Mo hinh: <strong>RandomForestClassifier</strong> (10 dac trung HSV)<br />
-                      &bull; 4 lop: Trang (Dan su) / Vang (KD van tai) / Xanh (Co quan NN) / Do (Quan doi)<br />
+                      &bull; Mô hình: <strong>Random Forest và KNN</strong> (10 đặc trưng HSV)<br />
+                      &bull; Phạm vi: biển nền trắng và vàng<br />
                       &bull; File: <code>models/classification/plate_color_model.pkl</code>
                     </div>
                   </div>
@@ -965,7 +963,7 @@ export default function App() {
                 {/* Color distribution */}
                 {scans.length > 0 && (
                   <div style={{ marginTop: 20 }}>
-                    <strong style={{ fontSize: 13, color: '#443859' }}>Phan phoi mau bien so da nhan dien:</strong>
+                    <strong style={{ fontSize: 13, color: '#443859' }}>Phân bố màu biển số đã nhận diện:</strong>
                     <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {Object.entries(COLOR_CFG).map(([code, cfg]) => {
                         const count = scans.filter(s => s.colorCode === code).length
@@ -983,7 +981,7 @@ export default function App() {
                       })}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
                         <div style={{ width: 12, height: 12, borderRadius: 2, background: '#e5e7eb', border: '1px solid #ccc', flexShrink: 0 }} />
-                        <span style={{ minWidth: 140, color: '#555' }}>Chua phan loai</span>
+                        <span style={{ minWidth: 140, color: '#555' }}>Chưa phân loại</span>
                         <div style={{ flex: 1, background: '#e5e7eb', borderRadius: 4, height: 8 }}>
                           <div style={{ width: Math.round(scans.filter(s => !s.colorCode || s.colorCode === 'Unknown').length / scans.length * 100) + '%', background: '#9ca3af', height: 8, borderRadius: 4 }} />
                         </div>
@@ -996,8 +994,8 @@ export default function App() {
 
               <section className="panel activity-panel">
                 <div className="panel-header">
-                  <div><h3>5 luot nhan dien gan nhat</h3><p>Du lieu cap nhat tu SQL Server</p></div>
-                  <button className="text-button" onClick={() => setActiveMenu('history')}>Xem tat ca <span>&rarr;</span></button>
+                  <div><h3>5 lượt nhận diện gần nhất</h3><p>Dữ liệu từ SQL Server</p></div>
+                  <button className="text-button" onClick={() => setActiveMenu('history')}>Xem tất cả <span>&rarr;</span></button>
                 </div>
                 <div className="activity-list">
                   {scans.slice(0, 5).map(s => (
@@ -1006,7 +1004,7 @@ export default function App() {
                       <div className="activity-content">
                         <strong>{formatPlate(s.plate)}</strong>
                         <span>
-                          Do tin cay: {(s.confidence * 100).toFixed(1)}%
+                          Độ tin cậy OCR: {(s.confidence * 100).toFixed(1)}%
                           {s.colorCode && s.colorCode !== 'Unknown' && (
                             <> &middot; <ColorBadge color={{ color_code: s.colorCode }} /></>
                           )}
@@ -1015,7 +1013,7 @@ export default function App() {
                       <time>{formatDateTime(s.scanTime)}</time>
                     </div>
                   ))}
-                  {scans.length === 0 && <div className="empty-state">Chua co ban ghi nao.</div>}
+                  {scans.length === 0 && <div className="empty-state">Chưa có bản ghi nào.</div>}
                 </div>
               </section>
             </div>
@@ -1027,27 +1025,27 @@ export default function App() {
           <section className="panel full-panel">
             <div className="panel-header">
               <div>
-                <h3>Kien truc he thong nhan dien bien so xe (3 lop)</h3>
-                <p>He thong hoat dong theo mo hinh phan tan doc lap va hieu nang cao.</p>
+                <h3>Kiến trúc hệ thống nhận diện biển số</h3>
+                <p>Hệ thống gồm giao diện web, dịch vụ AI, API nghiệp vụ và cơ sở dữ liệu.</p>
               </div>
               <span className={connected ? 'status-pill status-open' : 'status-pill status-closed'}>
-                {connected ? 'Tat ca dich vu hoat dong' : 'Kiem tra ket noi'}
+                {connected ? 'Các dịch vụ đã kết nối' : 'Chưa kết nối đầy đủ'}
               </span>
             </div>
             <dl className="settings-list">
-              <div><dt>Giao dien nguoi dung (Frontend)</dt><dd>React 19 + TypeScript + Vite (Port 5173)</dd></div>
-              <div><dt>Dich vu AI (Python Vision Service)</dt><dd>Flask + YOLOv8 ONNX + RapidOCR + RandomForest Color (Port 5000)</dd></div>
-              <div><dt>Mo hinh phat hien bien so</dt><dd>YOLOv8n trained weights (models/vision/best.onnx)</dd></div>
-              <div><dt>Mo hinh phan loai mau</dt><dd>RandomForestClassifier 10 dac trung HSV (models/classification/plate_color_model.pkl)</dd></div>
-              <div><dt>API Nghiep vu (Backend Web API)</dt><dd>ASP.NET Core 10 Web API (Port 5049)</dd></div>
-              <div><dt>Co so du lieu (Database)</dt><dd>Microsoft SQL Server &middot; Database: SmartParking &middot; Bang: PlateScans (co cot ColorCode)</dd></div>
-              <div><dt>Trang thai ket noi SQL Server</dt><dd>{connected ? `Da dong bo thanh cong (${scans.length} luot quet trong CSDL)` : 'Khong the ket noi'}</dd></div>
+              <div><dt>Giao diện người dùng</dt><dd>React 19, TypeScript, Vite (cổng 5173)</dd></div>
+              <div><dt>Dịch vụ AI</dt><dd>Flask, OpenCV, YOLOv8 ONNX, RapidOCR, Random Forest và KNN (cổng 5000)</dd></div>
+              <div><dt>Mô hình phát hiện biển số</dt><dd>YOLOv8 ONNX (<code>models/vision/best.onnx</code>)</dd></div>
+              <div><dt>Mô hình phân loại màu</dt><dd>Random Forest và KNN, 10 đặc trưng HSV</dd></div>
+              <div><dt>API nghiệp vụ</dt><dd>ASP.NET Core 10 Web API (cổng 5049)</dd></div>
+              <div><dt>Cơ sở dữ liệu</dt><dd>Microsoft SQL Server · SmartParking · bảng PlateScans</dd></div>
+              <div><dt>Trạng thái SQL Server</dt><dd>{connected ? `Đã đồng bộ (${scans.length} lượt quét)` : 'Không thể kết nối'}</dd></div>
             </dl>
           </section>
         )}
 
         <footer className="footer">
-          <span>ALPR System &middot; He thong nhan dien bien so xe</span>
+          <span>ALPR System &middot; Hệ thống nhận diện biển số xe</span>
           <span>YOLOv8 &middot; RapidOCR &middot; RandomForest Color &middot; ASP.NET Core &middot; SQL Server &middot; React</span>
         </footer>
       </main>
@@ -1060,7 +1058,7 @@ export default function App() {
               <h3>{lightbox.title}</h3>
               <button className="lightbox-close" onClick={() => setLightbox(null)}>{'\u2715'}</button>
             </div>
-            <div className="lightbox-body"><img src={lightbox.src} alt="Phong to" /></div>
+            <div className="lightbox-body"><img src={lightbox.src} alt="Ảnh phóng to" /></div>
           </div>
         </div>
       )}

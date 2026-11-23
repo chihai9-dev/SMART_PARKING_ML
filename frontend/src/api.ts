@@ -137,7 +137,7 @@ async function readResponse<T>(response: Response): Promise<T> {
   }
   if (!response.ok) {
     const data = body as { message?: string; title?: string }
-    throw new Error(data.message || data.title || ('Request failed (HTTP ' + response.status + ').'))
+    throw new Error(data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').'))
   }
   return body as T
 }
@@ -148,7 +148,7 @@ export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> 
     : '/backend-api/PlateScans'
   const response = await fetch(url, { headers: { Accept: 'application/json' } })
   const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) throw new Error('Du lieu tu backend khong dung dinh dang.')
+  if (!Array.isArray(result)) throw new Error('Dữ liệu từ backend không đúng định dạng.')
   return result as PlateScanDto[]
 }
 
