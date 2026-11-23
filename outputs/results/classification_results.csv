@@ -1,3 +1,8 @@
 model,n_estimators,max_depth,n_neighbors,weights,feature_scaling,train_samples,test_samples,real_samples,synthetic_samples,evaluation_source,test_real_samples,test_synthetic_samples,model_version,model_sha256,accuracy,precision_macro,recall_macro,f1_macro,mean_confidence,mean_confidence_correct,mean_confidence_incorrect,median_ms_per_image,mean_ms_per_image,p95_ms_per_image
+<<<<<<< HEAD
 RandomForestClassifier,200.0,12.0,,,none,1706,296,1502,500,real,296,0,c5806081cc1f3d52,c5806081cc1f3d521a301c0aa14e0634fd96a5e19ba40bf2ccfb278f19cf478d,0.9966,0.9966,0.9967,0.9966,0.995,0.995,1.0,50.8976,53.0707,63.0631
 KNeighborsClassifier,,,5.0,distance,StandardScaler,1706,296,1502,500,real,296,0,3d47fb6c1ac642fb,3d47fb6c1ac642fb85b9c76c8e5294ac82e2e8b0567e44a72354f415070cd8ce,0.9966,0.9966,0.9967,0.9966,0.9993,0.9993,1.0,1.3022,1.4879,2.3161
+=======
+RandomForestClassifier,200.0,12.0,,,none,1706,296,1502,500,real,296,0,a87a1fc964671ddf,a87a1fc964671ddff8db3897665e66836db49e8f75d68ee595bb859d54af3c0a,0.9966,0.9966,0.9967,0.9966,0.995,0.995,1.0,38.9376,40.6528,53.1841
+KNeighborsClassifier,,,5.0,distance,StandardScaler,1706,296,1502,500,real,296,0,b8e34945a0b50f4d,b8e34945a0b50f4d5b6eeafd73e559ae5d9b8908527f7f414eb3742a0a9b79cb,0.9966,0.9966,0.9967,0.9966,0.9993,0.9993,1.0,0.9082,1.0813,1.7445
+>>>>>>> a56fe33054857bda815cc4e3d19839036ecf28db

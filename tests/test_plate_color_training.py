@@ -13,6 +13,7 @@ from train_plate_color import (
     compare_metrics,
     evaluate_models_runtime,
     split_color_dataset,
+    summarize_repeated_evaluation,
 )
 from src.evaluation.metrics import evaluate_classification
 
@@ -30,6 +31,63 @@ class TestPlateColorEvaluationSplit(unittest.TestCase):
                 labels.append(label)
                 sources.append("real")
         return pd.DataFrame(rows), np.asarray(labels), np.asarray(sources)
+
+    def test_repeated_summary_reports_quality_and_stability_without_overclaiming(self):
+        runs = [
+            {
+                "run": 1,
+                "algorithms": {
+                    "RandomForestClassifier": {
+                        "accuracy": 0.8,
+                        "precision_macro": 0.8,
+                        "recall_macro": 0.8,
+                        "f1_macro": 0.7,
+                        "median_ms_per_image": 1.0,
+                    },
+                    "KNeighborsClassifier": {
+                        "accuracy": 0.94,
+                        "precision_macro": 0.94,
+                        "recall_macro": 0.94,
+                        "f1_macro": 0.84,
+                        "median_ms_per_image": 0.5,
+                    },
+                },
+            },
+            {
+                "run": 2,
+                "algorithms": {
+                    "RandomForestClassifier": {
+                        "accuracy": 1.0,
+                        "precision_macro": 1.0,
+                        "recall_macro": 1.0,
+                        "f1_macro": 0.9,
+                        "median_ms_per_image": 1.2,
+                    },
+                    "KNeighborsClassifier": {
+                        "accuracy": 0.96,
+                        "precision_macro": 0.96,
+                        "recall_macro": 0.96,
+                        "f1_macro": 0.86,
+                        "median_ms_per_image": 0.6,
+                    },
+                },
+            },
+        ]
+
+        report = summarize_repeated_evaluation(runs, "real")
+
+        self.assertEqual(report["run_count"], 2)
+        self.assertIn("GroupShuffleSplit", report["method"])
+        self.assertEqual(report["quality_leader"], "KNeighborsClassifier")
+        self.assertEqual(report["stability_leader"], "KNeighborsClassifier")
+        self.assertAlmostEqual(
+            report["summary"]["KNeighborsClassifier"]["f1_macro_mean"], 0.85
+        )
+        self.assertIn("không phải các mẫu độc lập", report["caveat"])
+
+        synthetic_report = summarize_repeated_evaluation(runs, "synthetic_only")
+        self.assertIn("synthetic", synthetic_report["method"])
+        self.assertIn("không đại diện", synthetic_report["caveat"])
 
     def test_real_images_are_the_only_evaluation_samples(self):
         X, y, sources = self._dataset(real_per_class=2)
