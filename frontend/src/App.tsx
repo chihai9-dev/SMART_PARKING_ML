@@ -115,6 +115,18 @@ function formatMetric(value?: number) {
   return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '\u2014'
 }
 
+function formatMeanStdPercent(mean?: number, std?: number) {
+  return typeof mean === 'number' && typeof std === 'number'
+    ? `${(mean * 100).toFixed(2)}% ± ${(std * 100).toFixed(2)}%`
+    : '\u2014'
+}
+
+function formatMeanStdMilliseconds(mean?: number, std?: number) {
+  return typeof mean === 'number' && typeof std === 'number'
+    ? `${mean.toFixed(4)} ± ${std.toFixed(4)}`
+    : '\u2014'
+}
+
 function ConfusionMatrixTable({ title, metrics }: { title: string; metrics?: ClassifierMetrics }) {
   const labels = metrics?.labels ?? []
   const matrix = metrics?.confusion_matrix ?? []
@@ -210,6 +222,53 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
           <p className="evaluation-caveat">
             * Confidence la xac suat trung binh, chua hieu chuan; latency chi do phan loai mau, khong gom OCR/phat hien bien.
           </p>
+          {report.repeated_evaluation?.summary && (
+            <>
+              <h4>Ket qua qua {report.repeated_evaluation.run_count ?? 0} lan huan luyen lai</h4>
+              <div className="model-evaluation-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mo hinh</th>
+                      <th>Accuracy TB ± SD</th>
+                      <th>Macro-F1 TB ± SD</th>
+                      <th>Latency TB ± SD (ms/anh)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {algorithms.map(({ key, label }) => {
+                      const summary = report.repeated_evaluation?.summary?.[key]
+                      return (
+                        <tr key={key}>
+                          <th>{label}</th>
+                          <td>{formatMeanStdPercent(summary?.accuracy_mean, summary?.accuracy_std)}</td>
+                          <td>{formatMeanStdPercent(summary?.f1_macro_mean, summary?.f1_macro_std)}</td>
+                          <td>{formatMeanStdMilliseconds(summary?.median_ms_per_image_mean, summary?.median_ms_per_image_std)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="evaluation-source">
+                Phuong phap: {report.repeated_evaluation.method}
+                {' · Nguon: '}
+                {report.repeated_evaluation.evaluation_source === 'real' ? 'anh that da gan nhan' : 'du lieu tong hop'}
+              </p>
+              {report.repeated_evaluation.quality_outcome && (
+                <p className="evaluation-outcome">{report.repeated_evaluation.quality_outcome}</p>
+              )}
+              {report.repeated_evaluation.stability_outcome && (
+                <p className="evaluation-outcome">{report.repeated_evaluation.stability_outcome}</p>
+              )}
+              {report.repeated_evaluation.latency_note && (
+                <p className="evaluation-caveat">{report.repeated_evaluation.latency_note}</p>
+              )}
+              {report.repeated_evaluation.caveat && (
+                <p className="evaluation-caveat">{report.repeated_evaluation.caveat}</p>
+              )}
+            </>
+          )}
           <div className="confusion-matrices-grid">
             {algorithms.map(({ key, label }) => (
               <ConfusionMatrixTable

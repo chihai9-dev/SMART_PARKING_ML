@@ -32,9 +32,11 @@ from sklearn.model_selection import GroupShuffleSplit
 ROOT = Path(__file__).resolve().parent
 META_OUT = MODEL_PATH.parent / "model_metadata.json"
 CSV_OUT = ROOT / "outputs" / "results" / "classification_results.csv"
+REPEATED_CSV_OUT = ROOT / "outputs" / "results" / "repeated_group_evaluation.csv"
 CM_FIG_OUT = ROOT / "outputs" / "figures" / "confusion_matrix.png"
 FI_FIG_OUT = ROOT / "outputs" / "figures" / "feature_importance.png"
 COMPARISON_OUT = ROOT / "outputs" / "results" / "algorithm_comparison.json"
+REPEATED_EVALUATION_RUNS = 10
 THEMES = {
     "White": ((235,235,232),(20,20,20)),
     "Yellow": ((50,205,240),(20,20,20)),
@@ -283,6 +285,168 @@ def evaluate_models_runtime(models, X, y_true, repeats=5):
     return evaluations
 
 
+def summarize_repeated_evaluation(runs, evaluation_source):
+    """Summarize paired group-holdout runs without overstating their significance."""
+    metric_names = (
+        "accuracy",
+        "precision_macro",
+        "recall_macro",
+        "f1_macro",
+        "median_ms_per_image",
+    )
+    algorithms = list(runs[0]["algorithms"])
+    summary = {}
+    for name in algorithms:
+        summary[name] = {}
+        for metric in metric_names:
+            values = np.asarray(
+                [run["algorithms"][name][metric] for run in runs],
+                dtype=np.float64,
+            )
+            summary[name][f"{metric}_mean"] = round(float(np.mean(values)), 6)
+            summary[name][f"{metric}_std"] = round(float(np.std(values)), 6)
+
+    rf = summary["RandomForestClassifier"]
+    knn = summary["KNeighborsClassifier"]
+    f1_gap = rf["f1_macro_std"] - knn["f1_macro_std"]
+    if np.isclose(f1_gap, 0.0, atol=1e-6):
+        stability_leader = None
+        stability_outcome = (
+            "Hai mô hình có độ biến động macro-F1 tương đương "
+            "qua các lần chia nhóm."
+        )
+    else:
+        stability_leader = (
+            "KNeighborsClassifier" if f1_gap > 0 else "RandomForestClassifier"
+        )
+        stability_outcome = (
+            f"{stability_leader} có độ lệch chuẩn macro-F1 thấp hơn "
+            f"trên {len(runs)} lần chia nhóm."
+        )
+
+    quality_keys = ("f1_macro_mean", "accuracy_mean", "precision_macro_mean", "recall_macro_mean")
+    rf_quality = tuple(rf[key] for key in quality_keys)
+    knn_quality = tuple(knn[key] for key in quality_keys)
+    if rf_quality == knn_quality:
+        quality_leader = None
+        quality_outcome = "Hai mô hình hòa về các metric chất lượng trung bình."
+    else:
+        quality_leader = (
+            "RandomForestClassifier" if rf_quality > knn_quality
+            else "KNeighborsClassifier"
+        )
+        quality_outcome = (
+            f"{quality_leader} có macro-F1 trung bình cao hơn trên "
+            f"{len(runs)} lần chia nhóm."
+        )
+
+    caveat = (
+        "Các lần holdout dùng chung một dataset và có thể trùng ảnh kiểm thử giữa "
+        "các lần; đây là thống kê mô tả độ biến động, không phải các mẫu độc lập "
+        "để suy luận ý nghĩa thống kê hay bảo đảm hiệu năng camera."
+        if evaluation_source == "real"
+        else
+        "Chỉ đánh giá trên dữ liệu tổng hợp; các lần chia không đại diện cho "
+        "hiệu năng trên ảnh camera thực tế."
+    )
+    method = (
+        "Repeated GroupShuffleSplit, holding out 20% of plate-identity groups"
+        if evaluation_source == "real"
+        else "Repeated stratified random 80/20 holdouts on synthetic samples"
+    )
+    return {
+        "run_count": len(runs),
+        "method": method,
+        "evaluation_source": evaluation_source,
+        "stability_metric": "population standard deviation of macro-F1",
+        "stability_leader": stability_leader,
+        "stability_outcome": stability_outcome,
+        "quality_leader": quality_leader,
+        "quality_outcome": quality_outcome,
+        "latency_note": (
+            "Per-crop classifier-only latency is measured on up to 32 holdout "
+            "samples per run; it excludes feature extraction, plate detection and OCR."
+        ),
+        "caveat": caveat,
+        "summary": summary,
+        "runs": runs,
+    }
+
+
+def evaluate_repeated_group_splits(
+    X, y, sources, groups, run_count=REPEATED_EVALUATION_RUNS,
+    test_size=0.2, base_seed=42, timing_sample_size=32,
+):
+    """Retrain both classifiers on the same repeated, group-isolated splits."""
+    if run_count < 2:
+        raise ValueError("Cần ít nhất hai lần chia dữ liệu để đo độ biến động.")
+    runs = []
+    evaluation_source = None
+    for run_index in range(run_count):
+        seed = base_seed + run_index
+        X_train, X_test, y_train, y_test, source = split_color_dataset(
+            X,
+            y,
+            sources,
+            groups,
+            test_size=test_size,
+            random_state=seed,
+        )
+        if evaluation_source is None:
+            evaluation_source = source
+        elif evaluation_source != source:
+            raise RuntimeError("Nguồn đánh giá thay đổi giữa các lần chạy.")
+
+        models = {
+            "RandomForestClassifier": train_classification_model(
+                X_train.values, y_train, random_state=seed
+            ),
+            "KNeighborsClassifier": train_knn_model(X_train.values, y_train),
+        }
+        test_values = X_test.values
+        predictions = {
+            name: model.predict(test_values)
+            for name, model in models.items()
+        }
+        metrics = {
+            name: evaluate_classification(
+                y_test, prediction, labels=sorted(THEMES)
+            )
+            for name, prediction in predictions.items()
+        }
+        timing_count = min(timing_sample_size, len(X_test))
+        runtime = evaluate_models_runtime(
+            models,
+            test_values[:timing_count],
+            y_test[:timing_count],
+            repeats=1,
+        )
+        runs.append({
+            "run": run_index + 1,
+            "random_state": seed,
+            "test_samples": int(len(X_test)),
+            "algorithms": {
+                name: {
+                    metric: float(metrics[name][metric])
+                    for metric in (
+                        "accuracy",
+                        "precision_macro",
+                        "recall_macro",
+                        "f1_macro",
+                    )
+                } | {
+                    "median_ms_per_image": float(
+                        runtime[name]["median_ms_per_image"]
+                    ),
+                    "timing_sample_count": timing_count,
+                }
+                for name in models
+            },
+        })
+
+    return summarize_repeated_evaluation(runs, evaluation_source or "synthetic_only")
+
+
 def main():
     print("1. Tạo dữ liệu và trích xuất 10 đặc trưng HSV...")
     X,y,sources,groups,counts = build_dataset(250)
@@ -331,10 +495,20 @@ def main():
         metrics_by_algorithm, evaluation_source, evaluation_by_algorithm
     )
     print(f"Kết luận: {comparison['outcome']} {comparison['caveat']}")
+    print(
+        f"3. Huấn luyện lại trên {REPEATED_EVALUATION_RUNS} lần chia nhóm "
+        "để đo độ ổn định..."
+    )
+    repeated_evaluation = evaluate_repeated_group_splits(
+        X, y, sources, groups, run_count=REPEATED_EVALUATION_RUNS
+    )
+    print(f"   {repeated_evaluation['quality_outcome']}")
+    print(f"   {repeated_evaluation['stability_outcome']}")
     for path in (
         MODEL_PATH,
         KNN_MODEL_PATH,
         CSV_OUT,
+        REPEATED_CSV_OUT,
         CM_FIG_OUT,
         FI_FIG_OUT,
         META_OUT,
@@ -386,8 +560,21 @@ def main():
             "p95_ms_per_image": evaluation_by_algorithm[name]["p95_ms_per_image"],
         })
     pd.DataFrame(result_rows).to_csv(CSV_OUT,index=False)
+    repeated_result_rows = []
+    for run in repeated_evaluation["runs"]:
+        for name, run_metrics in run["algorithms"].items():
+            repeated_result_rows.append({
+                "run": run["run"],
+                "random_state": run["random_state"],
+                "test_samples": run["test_samples"],
+                "evaluation_source": repeated_evaluation["evaluation_source"],
+                "model": name,
+                **run_metrics,
+            })
+    pd.DataFrame(repeated_result_rows).to_csv(REPEATED_CSV_OUT, index=False)
     comparison_payload = {
         **comparison,
+        "repeated_evaluation": repeated_evaluation,
         "train_samples": len(X_train),
         "test_samples": len(X_test),
         "test_real_samples": test_real_samples,
@@ -463,6 +650,7 @@ def main():
             "class_weight":model_config["class_weight"],
             "random_state":model_config["random_state"],
             "synthetic_samples_per_class":250,
+            "repeated_group_evaluation_runs":REPEATED_EVALUATION_RUNS,
         },
         "runtime":{
             "python":platform.python_version(),

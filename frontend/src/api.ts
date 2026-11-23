@@ -58,6 +58,27 @@ export type ClassifierEvaluation = {
   timing_scope?: string
 }
 
+export type RepeatedEvaluationSummary = {
+  run_count?: number
+  method?: string
+  evaluation_source?: string
+  stability_metric?: string
+  stability_leader?: string | null
+  stability_outcome?: string
+  quality_leader?: string | null
+  quality_outcome?: string
+  latency_note?: string
+  caveat?: string
+  summary?: Record<string, {
+    accuracy_mean?: number
+    accuracy_std?: number
+    f1_macro_mean?: number
+    f1_macro_std?: number
+    median_ms_per_image_mean?: number
+    median_ms_per_image_std?: number
+  }>
+}
+
 export type AlgorithmComparisonReport = {
   winner?: string | null
   outcome?: string
@@ -67,6 +88,7 @@ export type AlgorithmComparisonReport = {
   test_samples?: number
   test_real_samples?: number
   test_synthetic_samples?: number
+  repeated_evaluation?: RepeatedEvaluationSummary
   algorithms?: Record<string, {
     model_version?: string
     metrics?: ClassifierMetrics

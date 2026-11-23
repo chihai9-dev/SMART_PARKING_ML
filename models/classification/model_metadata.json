@@ -55,7 +55,7 @@
   "evaluation_note": "Chỉ số tính trên các capture group ảnh thật đã giữ riêng; synthetic chỉ tham gia huấn luyện.",
   "model_version": "a87a1fc964671ddf",
   "model_sha256": "a87a1fc964671ddff8db3897665e66836db49e8f75d68ee595bb859d54af3c0a",
-  "created_at_utc": "2026-11-23T03:07:31.291113+00:00",
+  "created_at_utc": "2026-11-23T03:29:56.748396+00:00",
   "feature_schema_version": "plate-color-hsv-v1",
   "training_config": {
     "n_estimators": 200,
@@ -63,7 +63,8 @@
     "min_samples_split": 4,
     "class_weight": "balanced",
     "random_state": 42,
-    "synthetic_samples_per_class": 250
+    "synthetic_samples_per_class": 250,
+    "repeated_group_evaluation_runs": 10
   },
   "runtime": {
     "python": "3.15.0",
@@ -112,9 +113,279 @@
     "decision_basis": "inference_speed_tiebreak",
     "latency_tiebreak_minimum_gain_percent": 5,
     "winner": "KNeighborsClassifier",
-    "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.6% theo median thời gian phân loại trên tập benchmark này.",
+    "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.7% theo median thời gian phân loại trên tập benchmark này.",
     "evaluation_source": "real",
     "caveat": "Kết luận chỉ áp dụng cho tập ảnh thật được giữ riêng; cần kiểm tra thêm trên các phiên chụp độc lập khác.",
+    "repeated_evaluation": {
+      "run_count": 10,
+      "method": "Repeated GroupShuffleSplit, holding out 20% of plate-identity groups",
+      "evaluation_source": "real",
+      "stability_metric": "population standard deviation of macro-F1",
+      "stability_leader": "KNeighborsClassifier",
+      "stability_outcome": "KNeighborsClassifier có độ lệch chuẩn macro-F1 thấp hơn trên 10 lần chia nhóm.",
+      "quality_leader": "RandomForestClassifier",
+      "quality_outcome": "RandomForestClassifier có macro-F1 trung bình cao hơn trên 10 lần chia nhóm.",
+      "latency_note": "Per-crop classifier-only latency is measured on up to 32 holdout samples per run; it excludes feature extraction, plate detection and OCR.",
+      "caveat": "Các lần holdout dùng chung một dataset và có thể trùng ảnh kiểm thử giữa các lần; đây là thống kê mô tả độ biến động, không phải các mẫu độc lập để suy luận ý nghĩa thống kê hay bảo đảm hiệu năng camera.",
+      "summary": {
+        "RandomForestClassifier": {
+          "accuracy_mean": 0.99796,
+          "accuracy_std": 0.003095,
+          "precision_macro_mean": 0.99801,
+          "precision_macro_std": 0.003074,
+          "recall_macro_mean": 0.99794,
+          "recall_macro_std": 0.003086,
+          "f1_macro_mean": 0.99796,
+          "f1_macro_std": 0.003095,
+          "median_ms_per_image_mean": 39.73001,
+          "median_ms_per_image_std": 1.062254
+        },
+        "KNeighborsClassifier": {
+          "accuracy_mean": 0.99664,
+          "accuracy_std": 0.002169,
+          "precision_macro_mean": 0.99646,
+          "precision_macro_std": 0.00219,
+          "recall_macro_mean": 0.99677,
+          "recall_macro_std": 0.002182,
+          "f1_macro_mean": 0.9966,
+          "f1_macro_std": 0.002184,
+          "median_ms_per_image_mean": 0.91144,
+          "median_ms_per_image_std": 0.009616
+        }
+      },
+      "runs": [
+        {
+          "run": 1,
+          "random_state": 42,
+          "test_samples": 296,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9966,
+              "recall_macro": 0.9967,
+              "f1_macro": 0.9966,
+              "median_ms_per_image": 37.589,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9966,
+              "recall_macro": 0.9967,
+              "f1_macro": 0.9966,
+              "median_ms_per_image": 0.9022,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 2,
+          "random_state": 43,
+          "test_samples": 290,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 37.9925,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9962,
+              "recall_macro": 0.9968,
+              "f1_macro": 0.9965,
+              "median_ms_per_image": 0.9012,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 3,
+          "random_state": 44,
+          "test_samples": 289,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 0.9965,
+              "precision_macro": 0.9969,
+              "recall_macro": 0.9961,
+              "f1_macro": 0.9965,
+              "median_ms_per_image": 39.7837,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9931,
+              "precision_macro": 0.993,
+              "recall_macro": 0.993,
+              "f1_macro": 0.993,
+              "median_ms_per_image": 0.9177,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 4,
+          "random_state": 45,
+          "test_samples": 319,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 40.2897,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9969,
+              "precision_macro": 0.9962,
+              "recall_macro": 0.9973,
+              "f1_macro": 0.9968,
+              "median_ms_per_image": 0.9257,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 5,
+          "random_state": 46,
+          "test_samples": 297,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 40.1241,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9965,
+              "recall_macro": 0.9968,
+              "f1_macro": 0.9966,
+              "median_ms_per_image": 0.9166,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 6,
+          "random_state": 47,
+          "test_samples": 305,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 40.317,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 0.9275,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 7,
+          "random_state": 48,
+          "test_samples": 294,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9967,
+              "recall_macro": 0.9966,
+              "f1_macro": 0.9966,
+              "median_ms_per_image": 39.5053,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9966,
+              "precision_macro": 0.9967,
+              "recall_macro": 0.9966,
+              "f1_macro": 0.9966,
+              "median_ms_per_image": 0.9136,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 8,
+          "random_state": 49,
+          "test_samples": 314,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 40.9926,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 0.9033,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 9,
+          "random_state": 50,
+          "test_samples": 296,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 0.9899,
+              "precision_macro": 0.9899,
+              "recall_macro": 0.99,
+              "f1_macro": 0.9899,
+              "median_ms_per_image": 40.8242,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9932,
+              "precision_macro": 0.9932,
+              "recall_macro": 0.9933,
+              "f1_macro": 0.9932,
+              "median_ms_per_image": 0.9019,
+              "timing_sample_count": 32
+            }
+          }
+        },
+        {
+          "run": 10,
+          "random_state": 51,
+          "test_samples": 311,
+          "algorithms": {
+            "RandomForestClassifier": {
+              "accuracy": 1.0,
+              "precision_macro": 1.0,
+              "recall_macro": 1.0,
+              "f1_macro": 1.0,
+              "median_ms_per_image": 39.882,
+              "timing_sample_count": 32
+            },
+            "KNeighborsClassifier": {
+              "accuracy": 0.9968,
+              "precision_macro": 0.9962,
+              "recall_macro": 0.9972,
+              "f1_macro": 0.9967,
+              "median_ms_per_image": 0.9047,
+              "timing_sample_count": 32
+            }
+          }
+        }
+      ]
+    },
     "train_samples": 1706,
     "test_samples": 296,
     "test_real_samples": 296,
@@ -128,9 +399,9 @@
           "mean_confidence_incorrect": 1.0,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-          "median_ms_per_image": 38.0095,
-          "mean_ms_per_image": 39.0881,
-          "p95_ms_per_image": 43.0384
+          "median_ms_per_image": 38.9376,
+          "mean_ms_per_image": 40.6528,
+          "p95_ms_per_image": 53.1841
         },
         "metrics": {
           "accuracy": 0.9966,
@@ -175,9 +446,9 @@
           "mean_confidence_incorrect": 1.0,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-          "median_ms_per_image": 0.9136,
-          "mean_ms_per_image": 1.0477,
-          "p95_ms_per_image": 1.6173
+          "median_ms_per_image": 0.9082,
+          "mean_ms_per_image": 1.0813,
+          "p95_ms_per_image": 1.7445
         },
         "metrics": {
           "accuracy": 0.9966,
