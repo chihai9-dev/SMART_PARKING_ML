@@ -28,67 +28,67 @@ public class PlateScanService : IPlateScanService
     public async Task<PlateScanResponse> CreateAsync(CreatePlateScanRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Plate))
-        {
             throw new ArgumentException("Biển số xe không được để trống.");
-        }
+        if (request.Confidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.Confidence), "Độ tin cậy phải nằm trong khoảng 0 đến 1.");
+        if (request.PlateColorConfidence is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(request.PlateColorConfidence), "Độ tin cậy màu phải nằm trong khoảng 0 đến 1.");
+
+        var effectiveColorCode = !string.IsNullOrWhiteSpace(request.ColorCode)
+            ? request.ColorCode.Trim()
+            : (!string.IsNullOrWhiteSpace(request.PlateColorCode) ? request.PlateColorCode.Trim() : null);
 
         var scan = new PlateScan
         {
             Plate = request.Plate.Trim().ToUpper(),
-            VehicleType = string.IsNullOrWhiteSpace(request.VehicleType) ? "Motorbike" : request.VehicleType.Trim(),
-            Confidence = request.Confidence > 0 ? request.Confidence : 1.0,
+            Confidence = request.Confidence ?? 1.0,
             ImagePath = request.ImagePath,
             CropImagePath = request.CropImagePath,
+            PlateColorCode = request.PlateColorCode ?? effectiveColorCode,
+            PlateColorLabel = request.PlateColorLabel,
+            PlateColorConfidence = request.PlateColorConfidence,
             ScanTime = request.ScanTime ?? DateTime.Now,
             Note = request.Note,
+            ColorCode = effectiveColorCode,
             CreatedAt = DateTime.Now
         };
 
         var newId = await _repository.CreateAsync(scan);
         scan.ScanId = newId;
-
         return MapToResponse(scan);
     }
 
-    public async Task<bool> DeleteAsync(long id)
-    {
-        return await _repository.DeleteAsync(id);
-    }
+    public Task<bool> DeleteAsync(long id) => _repository.DeleteAsync(id);
 
     public async Task<PlateScanStatsResponse> GetStatsAsync()
     {
         var all = await _repository.GetAllAsync();
         var today = DateTime.Today;
-
         var total = all.Count;
         var todayCount = all.Count(s => s.ScanTime.Date == today);
-        var motorbikes = all.Count(s => s.VehicleType.Equals("Motorbike", StringComparison.OrdinalIgnoreCase));
-        var cars = all.Count(s => s.VehicleType.Equals("Car", StringComparison.OrdinalIgnoreCase));
         var avgConf = total > 0 ? all.Average(s => s.Confidence) : 0.0;
 
         return new PlateScanStatsResponse
         {
             TotalScans = total,
             TodayScans = todayCount,
-            Motorbikes = motorbikes,
-            Cars = cars,
             AverageConfidence = Math.Round(avgConf, 4)
         };
     }
 
-    private static PlateScanResponse MapToResponse(PlateScan scan)
+    private static PlateScanResponse MapToResponse(PlateScan scan) => new()
     {
-        return new PlateScanResponse
-        {
-            ScanId = scan.ScanId,
-            Plate = scan.Plate,
-            VehicleType = scan.VehicleType,
-            Confidence = scan.Confidence,
-            ImagePath = scan.ImagePath,
-            CropImagePath = scan.CropImagePath,
-            ScanTime = scan.ScanTime,
-            Note = scan.Note,
-            CreatedAt = scan.CreatedAt
-        };
-    }
+        ScanId = scan.ScanId,
+        Plate = scan.Plate,
+        Confidence = scan.Confidence,
+        ImagePath = scan.ImagePath,
+        CropImagePath = scan.CropImagePath,
+        PlateColorCode = scan.PlateColorCode ?? scan.ColorCode,
+        PlateColorLabel = scan.PlateColorLabel,
+        PlateColorConfidence = scan.PlateColorConfidence,
+        ScanTime = scan.ScanTime,
+        Note = scan.Note,
+        ColorCode = scan.ColorCode ?? scan.PlateColorCode,
+        CreatedAt = scan.CreatedAt
+    };
 }

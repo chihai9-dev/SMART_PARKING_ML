@@ -17,7 +17,7 @@ from src.vision.preprocess import (
 )
 
 # 51A12345, 51AB12345, 59B112345, cho phép OCR nhầm O/0
-_PLATE_RE = re.compile(r"^\d{2}[A-Z]{1,3}\d{4,6}$")
+_PLATE_RE = re.compile(r"^\d{2}[A-Z]{1,3}\d?\d{4,6}$")
 
 
 _OCR_DIGIT_FIX = {"O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "Z": "2", "S": "5"}
@@ -45,6 +45,15 @@ def normalize_plate(raw: Optional[str]) -> str:
     if len(chars) <= 2:
         return "".join(chars)
 
+    # Một số seri xe máy có dạng chữ + chữ số (ví dụ B1). Nếu phần sau
+    # chữ số seri còn 4-6 chữ số thì giữ riêng chữ số đó khỏi phần số cuối.
+    alphanumeric_series = (
+        len(chars) > 4
+        and (chars[2].isalpha() or chars[2] in _OCR_LETTER_FIX)
+        and (chars[3].isdigit() or chars[3] in _OCR_DIGIT_FIX)
+        and 4 <= len(chars) - 4 <= 6
+    )
+
     # Phần sau mã tỉnh: tìm chuỗi số ở cuối, thường dài 4-6 ký tự.
     # Các ký tự ngay trước phần số được coi là seri chữ và sửa 0/1/... -> O/I/...
     tail_len = 0
@@ -55,13 +64,17 @@ def normalize_plate(raw: Optional[str]) -> str:
             break
     tail_len = min(tail_len, 6)
     prefix_end = len(chars) - tail_len if tail_len >= 4 else min(len(chars), 5)
+    if alphanumeric_series:
+        prefix_end = 3
 
     for i in range(2, prefix_end):
         if chars[i].isdigit():
             chars[i] = _OCR_LETTER_FIX.get(chars[i], chars[i])
 
     # Phần số cuối: sửa ký tự OCR bị đọc thành chữ.
-    digit_start = max(prefix_end, 2)
+    digit_start = 4 if alphanumeric_series else max(prefix_end, 2)
+    if alphanumeric_series:
+        chars[3] = _OCR_DIGIT_FIX.get(chars[3], chars[3])
     for i in range(digit_start, len(chars)):
         chars[i] = _OCR_DIGIT_FIX.get(chars[i], chars[i])
 

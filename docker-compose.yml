@@ -1,0 +1,72 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: smartparking-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Create a .env file and set MSSQL_SA_PASSWORD}
+    ports:
+      - "${SQLSERVER_PORT:-14330}:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" >/dev/null || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    container_name: smartparking-backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=SmartParking;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
+    ports:
+      - "5049:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  python-api:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: smartparking-python-api
+    environment:
+      SMARTPARKING_API_URL: http://backend:8080
+      FLASK_DEBUG: "0"
+    ports:
+      - "5000:5000"
+    volumes:
+      - parking_processed_data:/workspace/data/processed
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: smartparking-frontend
+    environment:
+      BACKEND_PROXY_TARGET: http://backend:8080
+      PYTHON_PROXY_TARGET: http://python-api:5000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+      - python-api
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+  parking_processed_data:

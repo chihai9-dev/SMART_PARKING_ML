@@ -17,23 +17,13 @@ public class PlateScanRepository : IPlateScanRepository
     public async Task<IReadOnlyList<PlateScan>> GetAllAsync(string? search = null)
     {
         string sql = """
-            SELECT ScanId,
-                   Plate,
-                   VehicleType,
-                   Confidence,
-                   ImagePath,
-                   CropImagePath,
-                   ScanTime,
-                   Note,
-                   CreatedAt
+            SELECT ScanId, Plate, Confidence, ImagePath, CropImagePath,
+                   PlateColorCode, PlateColorLabel, PlateColorConfidence,
+                   ScanTime, Note, ColorCode, CreatedAt
             FROM PlateScans
             """;
-
         if (!string.IsNullOrWhiteSpace(search))
-        {
             sql += " WHERE Plate LIKE @Search ";
-        }
-
         sql += " ORDER BY ScanId DESC;";
 
         using var db = _factory.CreateConnection();
@@ -44,19 +34,12 @@ public class PlateScanRepository : IPlateScanRepository
     public async Task<PlateScan?> GetByIdAsync(long id)
     {
         const string sql = """
-            SELECT ScanId,
-                   Plate,
-                   VehicleType,
-                   Confidence,
-                   ImagePath,
-                   CropImagePath,
-                   ScanTime,
-                   Note,
-                   CreatedAt
+            SELECT ScanId, Plate, Confidence, ImagePath, CropImagePath,
+                   PlateColorCode, PlateColorLabel, PlateColorConfidence,
+                   ScanTime, Note, ColorCode, CreatedAt
             FROM PlateScans
             WHERE ScanId = @Id;
             """;
-
         using var db = _factory.CreateConnection();
         return await db.QuerySingleOrDefaultAsync<PlateScan>(sql, new { Id = id });
     }
@@ -65,30 +48,15 @@ public class PlateScanRepository : IPlateScanRepository
     {
         const string sql = """
             INSERT INTO PlateScans
-            (
-                Plate,
-                VehicleType,
-                Confidence,
-                ImagePath,
-                CropImagePath,
-                ScanTime,
-                Note,
-                CreatedAt
-            )
+                (Plate, Confidence, ImagePath, CropImagePath,
+                 PlateColorCode, PlateColorLabel, PlateColorConfidence,
+                 ScanTime, Note, ColorCode, CreatedAt)
             OUTPUT INSERTED.ScanId
             VALUES
-            (
-                @Plate,
-                @VehicleType,
-                @Confidence,
-                @ImagePath,
-                @CropImagePath,
-                @ScanTime,
-                @Note,
-                @CreatedAt
-            );
+                (@Plate, @Confidence, @ImagePath, @CropImagePath,
+                 @PlateColorCode, @PlateColorLabel, @PlateColorConfidence,
+                 @ScanTime, @Note, @ColorCode, @CreatedAt);
             """;
-
         using var db = _factory.CreateConnection();
         return await db.ExecuteScalarAsync<long>(sql, scan);
     }
@@ -97,7 +65,6 @@ public class PlateScanRepository : IPlateScanRepository
     {
         const string sql = "DELETE FROM PlateScans WHERE ScanId = @Id;";
         using var db = _factory.CreateConnection();
-        var affected = await db.ExecuteAsync(sql, new { Id = id });
-        return affected > 0;
+        return await db.ExecuteAsync(sql, new { Id = id }) > 0;
     }
 }

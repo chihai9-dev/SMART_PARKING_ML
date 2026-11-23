@@ -1,4 +1,4 @@
-"""Nhận diện biển số và loại xe từ ảnh."""
+"""Phát hiện, nhận diện ký tự và phân loại màu nền biển số."""
 
 from src.vision.plate_ocr import (
     PlateRecognizer,
@@ -7,7 +7,6 @@ from src.vision.plate_ocr import (
     plates_match,
     recognize_plate,
 )
-from src.vision.vehicle_type import infer_vehicle_type, vehicle_types_match
 
 __all__ = [
     "PlateRecognizer",
@@ -15,6 +14,4 @@ __all__ = [
     "plates_match",
     "is_valid_vn_plate",
     "recognize_plate",
-    "infer_vehicle_type",
-    "vehicle_types_match",
 ]

@@ -1,21 +1,99 @@
 export type PlateScanDto = {
   scanId: number
   plate: string
-  vehicleType?: string | null
   confidence: number
   imagePath?: string | null
   cropImagePath?: string | null
+  plateColor?: PlateColorResult
+  plateColorCode?: string | null
+  plateColorLabel?: string | null
+  plateColorConfidence?: number | null
   scanTime: string
   note?: string | null
+  colorCode?: string | null
   createdAt?: string
 }
 
 export type PlateScanStats = {
   totalScans: number
   todayScans: number
-  motorbikes?: number
-  cars?: number
   averageConfidence: number
+}
+
+export type PlateColorResult = {
+  color_code?: string
+  color_label?: string
+  confidence?: number
+  probabilities?: Record<string, number>
+  algorithm?: string
+  message?: string
+  scope_status?: string
+  features?: Record<string, number>
+  comparison?: PlateColorResult
+}
+
+export type ClassifierMetrics = {
+  accuracy?: number
+  precision_macro?: number
+  recall_macro?: number
+  f1_macro?: number
+  labels?: string[]
+  confusion_matrix?: number[][]
+  per_class?: Record<string, {
+    precision: number
+    recall: number
+    f1_score: number
+    support: number
+  }>
+}
+
+export type ClassifierEvaluation = {
+  mean_confidence?: number
+  mean_confidence_correct?: number | null
+  mean_confidence_incorrect?: number | null
+  median_ms_per_image?: number
+  mean_ms_per_image?: number
+  p95_ms_per_image?: number
+  timing_repeats_per_image?: number
+  timing_scope?: string
+}
+
+export type RepeatedEvaluationSummary = {
+  run_count?: number
+  method?: string
+  evaluation_source?: string
+  stability_metric?: string
+  stability_leader?: string | null
+  stability_outcome?: string
+  quality_leader?: string | null
+  quality_outcome?: string
+  latency_note?: string
+  caveat?: string
+  summary?: Record<string, {
+    accuracy_mean?: number
+    accuracy_std?: number
+    f1_macro_mean?: number
+    f1_macro_std?: number
+    median_ms_per_image_mean?: number
+    median_ms_per_image_std?: number
+  }>
+}
+
+export type AlgorithmComparisonReport = {
+  winner?: string | null
+  outcome?: string
+  evaluation_source?: string
+  caveat?: string
+  train_samples?: number
+  test_samples?: number
+  test_real_samples?: number
+  test_synthetic_samples?: number
+  repeated_evaluation?: RepeatedEvaluationSummary
+  algorithms?: Record<string, {
+    model_version?: string
+    metrics?: ClassifierMetrics
+    evaluation?: ClassifierEvaluation
+  }>
 }
 
 export type PlatePreview = {
@@ -27,8 +105,8 @@ export type PlatePreview = {
   message?: string
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
-  vehicle_type?: string
   bbox?: number[]
+  plate_color?: PlateColorResult
   [key: string]: unknown
 }
 
@@ -39,78 +117,50 @@ export type ScanResult = {
   confidence?: number
   engine?: string
   message?: string
-  vehicle_type?: string
   bbox?: number[]
   crop_jpeg_b64?: string
   annotated_jpeg_b64?: string
   image_path?: string
   crop_path?: string
+  database_saved?: boolean
+  database_message?: string | null
+  plate_color?: PlateColorResult
+  algorithm_comparison?: AlgorithmComparisonReport | null
   [key: string]: unknown
-}
-
-type LoginResponse = {
-  token: string
-  expiresInMinutes?: number
 }
 
 async function readResponse<T>(response: Response): Promise<T> {
   const text = await response.text()
   let body: unknown = {}
-
   if (text) {
-    try {
-      body = JSON.parse(text)
-    } catch {
-      body = { message: text }
-    }
+    try { body = JSON.parse(text) } catch { body = { message: text } }
   }
-
   if (!response.ok) {
     const data = body as { message?: string; title?: string }
     throw new Error(data.message || data.title || ('Yêu cầu thất bại (HTTP ' + response.status + ').'))
   }
-
   return body as T
 }
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const response = await fetch('/backend-api/Auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username, password }),
-  })
-
-  const result = await readResponse<LoginResponse>(response)
-  if (!result.token) throw new Error('Backend không trả về mã đăng nhập.')
-  return result
-}
-
-export async function fetchPlateScans(token?: string, search?: string): Promise<PlateScanDto[]> {
-  const url = search ? `/backend-api/PlateScans?search=${encodeURIComponent(search)}` : '/backend-api/PlateScans'
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch(url, { headers })
+export async function fetchPlateScans(search?: string): Promise<PlateScanDto[]> {
+  const url = search
+    ? '/backend-api/PlateScans?search=' + encodeURIComponent(search)
+    : '/backend-api/PlateScans'
+  const response = await fetch(url, { headers: { Accept: 'application/json' } })
   const result = await readResponse<unknown>(response)
-  if (!Array.isArray(result)) throw new Error('Dữ liệu quét từ backend không đúng định dạng.')
+  if (!Array.isArray(result)) throw new Error('Dữ liệu từ backend không đúng định dạng.')
   return result as PlateScanDto[]
 }
 
-export async function fetchPlateScanStats(token?: string): Promise<PlateScanStats> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch('/backend-api/PlateScans/stats', { headers })
+export async function fetchPlateScanStats(): Promise<PlateScanStats> {
+  const response = await fetch('/backend-api/PlateScans/stats', { headers: { Accept: 'application/json' } })
   return readResponse<PlateScanStats>(response)
 }
 
-export async function deletePlateScan(id: number, token?: string): Promise<void> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch(`/backend-api/PlateScans/${id}`, {
+export async function deletePlateScan(id: number): Promise<void> {
+  const response = await fetch('/backend-api/PlateScans/' + id, {
     method: 'DELETE',
-    headers,
+    headers: { Accept: 'application/json' },
   })
   await readResponse<unknown>(response)
 }
@@ -118,49 +168,13 @@ export async function deletePlateScan(id: number, token?: string): Promise<void>
 export async function scanPlate(image: Blob): Promise<ScanResult> {
   const form = new FormData()
   form.append('image', image, 'plate-upload.jpg')
-
-  const response = await fetch('/python-api/scan-plate', {
-    method: 'POST',
-    body: form,
-  })
-
+  const response = await fetch('/python-api/scan-plate', { method: 'POST', body: form })
   return readResponse<ScanResult>(response)
 }
 
 export async function previewPlate(image: Blob): Promise<PlatePreview> {
   const form = new FormData()
   form.append('image', image, 'camera-frame.jpg')
-
-  const response = await fetch('/python-api/preview-plate', {
-    method: 'POST',
-    body: form,
-  })
-
+  const response = await fetch('/python-api/preview-plate', { method: 'POST', body: form })
   return readResponse<PlatePreview>(response)
-}
-
-export async function createPlateScan(
-  scan: {
-    plate: string
-    vehicleType?: string | null
-    confidence: number
-    imagePath?: string | null
-    cropImagePath?: string | null
-    note?: string | null
-  },
-  token?: string
-): Promise<PlateScanDto> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const response = await fetch('/backend-api/PlateScans', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(scan),
-  })
-
-  return readResponse<PlateScanDto>(response)
 }
