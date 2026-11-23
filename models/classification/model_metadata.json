@@ -53,15 +53,9 @@
     "synthetic": 0
   },
   "evaluation_note": "Chỉ số tính trên các capture group ảnh thật đã giữ riêng; synthetic chỉ tham gia huấn luyện.",
-<<<<<<< HEAD
   "model_version": "c5806081cc1f3d52",
   "model_sha256": "c5806081cc1f3d521a301c0aa14e0634fd96a5e19ba40bf2ccfb278f19cf478d",
   "created_at_utc": "2026-11-23T03:17:33.700001+00:00",
-=======
-  "model_version": "a87a1fc964671ddf",
-  "model_sha256": "a87a1fc964671ddff8db3897665e66836db49e8f75d68ee595bb859d54af3c0a",
-  "created_at_utc": "2026-11-23T03:29:56.748396+00:00",
->>>>>>> a56fe33054857bda815cc4e3d19839036ecf28db
   "feature_schema_version": "plate-color-hsv-v1",
   "training_config": {
     "n_estimators": 200,
@@ -119,11 +113,7 @@
     "decision_basis": "inference_speed_tiebreak",
     "latency_tiebreak_minimum_gain_percent": 5,
     "winner": "KNeighborsClassifier",
-<<<<<<< HEAD
     "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.4% theo median thời gian phân loại trên tập benchmark này.",
-=======
-    "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.7% theo median thời gian phân loại trên tập benchmark này.",
->>>>>>> a56fe33054857bda815cc4e3d19839036ecf28db
     "evaluation_source": "real",
     "caveat": "Kết luận chỉ áp dụng cho tập ảnh thật được giữ riêng; cần kiểm tra thêm trên các phiên chụp độc lập khác.",
     "repeated_evaluation": {
@@ -409,15 +399,9 @@
           "mean_confidence_incorrect": 1.0,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-<<<<<<< HEAD
           "median_ms_per_image": 50.8976,
           "mean_ms_per_image": 53.0707,
           "p95_ms_per_image": 63.0631
-=======
-          "median_ms_per_image": 38.9376,
-          "mean_ms_per_image": 40.6528,
-          "p95_ms_per_image": 53.1841
->>>>>>> a56fe33054857bda815cc4e3d19839036ecf28db
         },
         "metrics": {
           "accuracy": 0.9966,
@@ -462,15 +446,9 @@
           "mean_confidence_incorrect": 1.0,
           "timing_repeats_per_image": 5,
           "timing_scope": "classifier_only_excludes_image_feature_extraction",
-<<<<<<< HEAD
           "median_ms_per_image": 1.3022,
           "mean_ms_per_image": 1.4879,
           "p95_ms_per_image": 2.3161
-=======
-          "median_ms_per_image": 0.9082,
-          "mean_ms_per_image": 1.0813,
-          "p95_ms_per_image": 1.7445
->>>>>>> a56fe33054857bda815cc4e3d19839036ecf28db
         },
         "metrics": {
           "accuracy": 0.9966,
