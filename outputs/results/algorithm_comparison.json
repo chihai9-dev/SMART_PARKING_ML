@@ -9,7 +9,7 @@
   "decision_basis": "inference_speed_tiebreak",
   "latency_tiebreak_minimum_gain_percent": 5,
   "winner": "KNeighborsClassifier",
-  "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.6% theo median thời gian phân loại trên tập benchmark này.",
+  "outcome": "Hai mô hình bằng nhau về bốn metric chất lượng; KNeighborsClassifier nhanh hơn khoảng 97.4% theo median thời gian phân loại trên tập benchmark này.",
   "evaluation_source": "real",
   "caveat": "Kết luận chỉ áp dụng cho tập ảnh thật được giữ riêng; cần kiểm tra thêm trên các phiên chụp độc lập khác.",
   "train_samples": 1706,
@@ -18,16 +18,16 @@
   "test_synthetic_samples": 0,
   "algorithms": {
     "RandomForestClassifier": {
-      "model_version": "a87a1fc964671ddf",
+      "model_version": "c5806081cc1f3d52",
       "evaluation": {
         "mean_confidence": 0.995,
         "mean_confidence_correct": 0.995,
         "mean_confidence_incorrect": 1.0,
         "timing_repeats_per_image": 5,
         "timing_scope": "classifier_only_excludes_image_feature_extraction",
-        "median_ms_per_image": 38.0095,
-        "mean_ms_per_image": 39.0881,
-        "p95_ms_per_image": 43.0384
+        "median_ms_per_image": 50.8976,
+        "mean_ms_per_image": 53.0707,
+        "p95_ms_per_image": 63.0631
       },
       "metrics": {
         "accuracy": 0.9966,
@@ -65,16 +65,16 @@
       }
     },
     "KNeighborsClassifier": {
-      "model_version": "b8e34945a0b50f4d",
+      "model_version": "3d47fb6c1ac642fb",
       "evaluation": {
         "mean_confidence": 0.9993,
         "mean_confidence_correct": 0.9993,
         "mean_confidence_incorrect": 1.0,
         "timing_repeats_per_image": 5,
         "timing_scope": "classifier_only_excludes_image_feature_extraction",
-        "median_ms_per_image": 0.9136,
-        "mean_ms_per_image": 1.0477,
-        "p95_ms_per_image": 1.6173
+        "median_ms_per_image": 1.3022,
+        "mean_ms_per_image": 1.4879,
+        "p95_ms_per_image": 2.3161
       },
       "metrics": {
         "accuracy": 0.9966,
