@@ -644,6 +644,24 @@ button:focus-visible, input:focus-visible {
 .model-evaluation {
   margin-top: 18px;
 }
+.model-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 14px 16px;
+  border: 1px solid #d9c9ee;
+  border-radius: 8px;
+  background: #f7f3fc;
+  color: #302842;
+}
+.model-verdict strong {
+  font-size: 15px;
+}
+.model-verdict span {
+  color: #746c84;
+  font-size: 13px;
+}
 .model-evaluation-table-wrap {
   overflow-x: auto;
   border: 1px solid #e2d9ee;

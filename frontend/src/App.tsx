@@ -8,7 +8,6 @@ import {
 } from './api'
 import type {
   AlgorithmComparisonReport,
-  ClassifierMetrics,
   PlateColorResult,
   PlatePreview,
   PlateScanDto,
@@ -111,178 +110,50 @@ function ClassifierResultTable({ title, color }: { title: string; color?: PlateC
   )
 }
 
-function formatMetric(value?: number) {
-  return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '\u2014'
-}
-
-function formatMeanStdPercent(mean?: number, std?: number) {
-  return typeof mean === 'number' && typeof std === 'number'
-    ? `${(mean * 100).toFixed(2)}% ± ${(std * 100).toFixed(2)}%`
-    : '\u2014'
-}
-
-function formatMeanStdMilliseconds(mean?: number, std?: number) {
-  return typeof mean === 'number' && typeof std === 'number'
-    ? `${mean.toFixed(4)} ± ${std.toFixed(4)}`
-    : '\u2014'
-}
-
-function ConfusionMatrixTable({ title, metrics }: { title: string; metrics?: ClassifierMetrics }) {
-  const labels = metrics?.labels ?? []
-  const matrix = metrics?.confusion_matrix ?? []
-
-  return (
-    <div className="confusion-matrix-card">
-      <h5>{title}</h5>
-      {labels.length > 0 && matrix.length === labels.length ? (
-        <div className="confusion-matrix-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Mau that \ Du doan</th>
-                {labels.map(label => <th key={label}>{label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {labels.map((label, rowIndex) => (
-                <tr key={label}>
-                  <th>{label}</th>
-                  {labels.map((columnLabel, columnIndex) => (
-                    <td
-                      key={columnLabel}
-                      className={rowIndex === columnIndex ? 'confusion-diagonal' : undefined}
-                    >
-                      {matrix[rowIndex]?.[columnIndex] ?? 0}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="evaluation-caveat">Chua co ma tran nham lan.</p>
-      )}
-    </div>
-  )
-}
-
 function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport | null }) {
-  const algorithms = [
+  const repeated = report?.repeated_evaluation
+  const summary = repeated?.summary
+  const models = [
     { key: 'RandomForestClassifier', label: 'Random Forest' },
     { key: 'KNeighborsClassifier', label: 'KNN' },
   ]
+  const fastest = models.reduce((best, model) => {
+    const latency = summary?.[model.key]?.median_ms_per_image_mean
+    const bestLatency = summary?.[best.key]?.median_ms_per_image_mean
+    return typeof latency === 'number' && (typeof bestLatency !== 'number' || latency < bestLatency)
+      ? model
+      : best
+  })
+  const mostStable = models.reduce((best, model) => {
+    const variation = summary?.[model.key]?.f1_macro_std
+    const bestVariation = summary?.[best.key]?.f1_macro_std
+    return typeof variation === 'number' && (typeof bestVariation !== 'number' || variation < bestVariation)
+      ? model
+      : best
+  })
+  const sameRecommendation = summary
+    && typeof summary[fastest.key]?.median_ms_per_image_mean === 'number'
+    && typeof summary[mostStable.key]?.f1_macro_std === 'number'
+    && fastest.key === mostStable.key
+  const fastestLatency = summary?.[fastest.key]?.median_ms_per_image_mean
 
   return (
     <section className="model-evaluation">
-      <h4>So sanh tren cung tap kiem thu</h4>
-      {report?.algorithms ? (
-        <>
-          <div className="model-evaluation-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mo hinh</th>
-                  <th>Accuracy</th>
-                  <th>Precision (macro)</th>
-                  <th>Recall (macro)</th>
-                  <th>F1-score (macro)</th>
-                  <th>Confidence TB*</th>
-                  <th>Latency median (ms/anh)</th>
-                  <th>Latency P95 (ms/anh)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {algorithms.map(({ key, label }) => {
-                  const modelResult = report.algorithms?.[key]
-                  const metrics = modelResult?.metrics
-                  const evaluation = modelResult?.evaluation
-                  return (
-                    <tr key={key}>
-                      <th>{label}</th>
-                      <td>{formatMetric(metrics?.accuracy)}</td>
-                      <td>{formatMetric(metrics?.precision_macro)}</td>
-                      <td>{formatMetric(metrics?.recall_macro)}</td>
-                      <td>{formatMetric(metrics?.f1_macro)}</td>
-                      <td>{formatMetric(evaluation?.mean_confidence)}</td>
-                      <td>{typeof evaluation?.median_ms_per_image === 'number' ? evaluation.median_ms_per_image.toFixed(4) : '\u2014'}</td>
-                      <td>{typeof evaluation?.p95_ms_per_image === 'number' ? evaluation.p95_ms_per_image.toFixed(4) : '\u2014'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="evaluation-source">
-            Nguon: {report.evaluation_source === 'real' ? 'anh that da gan nhan' : 'du lieu tong hop'}
-            {typeof report.test_samples === 'number' && ` · Tap kiem thu: ${report.test_samples} anh`}
-          </p>
-          {report.outcome && <p className="evaluation-outcome">{report.outcome}</p>}
-          {report.caveat && <p className="evaluation-caveat">{report.caveat}</p>}
-          <p className="evaluation-caveat">
-            * Confidence la xac suat trung binh, chua hieu chuan; latency chi do phan loai mau, khong gom OCR/phat hien bien.
-          </p>
-          {report.repeated_evaluation?.summary && (
-            <>
-              <h4>Ket qua qua {report.repeated_evaluation.run_count ?? 0} lan huan luyen lai</h4>
-              <div className="model-evaluation-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mo hinh</th>
-                      <th>Accuracy TB ± SD</th>
-                      <th>Macro-F1 TB ± SD</th>
-                      <th>Latency TB ± SD (ms/anh)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {algorithms.map(({ key, label }) => {
-                      const summary = report.repeated_evaluation?.summary?.[key]
-                      return (
-                        <tr key={key}>
-                          <th>{label}</th>
-                          <td>{formatMeanStdPercent(summary?.accuracy_mean, summary?.accuracy_std)}</td>
-                          <td>{formatMeanStdPercent(summary?.f1_macro_mean, summary?.f1_macro_std)}</td>
-                          <td>{formatMeanStdMilliseconds(summary?.median_ms_per_image_mean, summary?.median_ms_per_image_std)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="evaluation-source">
-                Phuong phap: {report.repeated_evaluation.method}
-                {' · Nguon: '}
-                {report.repeated_evaluation.evaluation_source === 'real' ? 'anh that da gan nhan' : 'du lieu tong hop'}
-              </p>
-              {report.repeated_evaluation.quality_outcome && (
-                <p className="evaluation-outcome">{report.repeated_evaluation.quality_outcome}</p>
-              )}
-              {report.repeated_evaluation.stability_outcome && (
-                <p className="evaluation-outcome">{report.repeated_evaluation.stability_outcome}</p>
-              )}
-              {report.repeated_evaluation.latency_note && (
-                <p className="evaluation-caveat">{report.repeated_evaluation.latency_note}</p>
-              )}
-              {report.repeated_evaluation.caveat && (
-                <p className="evaluation-caveat">{report.repeated_evaluation.caveat}</p>
-              )}
-            </>
-          )}
-          <div className="confusion-matrices-grid">
-            {algorithms.map(({ key, label }) => (
-              <ConfusionMatrixTable
-                key={key}
-                title={`Ma tran nham lan - ${label}`}
-                metrics={report.algorithms?.[key]?.metrics}
-              />
-            ))}
-          </div>
-        </>
+      <h4>Ket luan so sanh mo hinh</h4>
+      {sameRecommendation && repeated ? (
+        <div className="model-verdict">
+          <strong>{fastest.label} nhanh nhất và ổn định hơn</strong>
+          <span>
+            {typeof fastestLatency === 'number' ? `${fastestLatency.toFixed(2)} ms/ảnh` : ''}
+            {repeated.run_count ? ` · ${repeated.run_count} lần huấn luyện` : ''}
+          </span>
+        </div>
+      ) : summary ? (
+        <div className="model-verdict">
+          <strong>Tốc độ tốt nhất: {fastest.label} · Ổn định nhất: {mostStable.label}</strong>
+        </div>
       ) : (
-        <p className="evaluation-caveat">
-          Chua co bao cao metric. Hay chay python train_plate_color.py de tao tap so sanh.
-        </p>
+        <p className="evaluation-caveat">Chưa có báo cáo so sánh. Hãy chạy `python train_plate_color.py`.</p>
       )}
     </section>
   )
