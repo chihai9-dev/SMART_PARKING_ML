@@ -140,18 +140,56 @@ function ModelEvaluationTable({ report }: { report?: AlgorithmComparisonReport |
   return (
     <section className="model-evaluation">
       <h4>Ket luan so sanh mo hinh</h4>
-      {sameRecommendation && repeated ? (
-        <div className="model-verdict">
-          <strong>{fastest.label} nhanh nhất và ổn định hơn</strong>
-          <span>
-            {typeof fastestLatency === 'number' ? `${fastestLatency.toFixed(2)} ms/ảnh` : ''}
-            {repeated.run_count ? ` · ${repeated.run_count} lần huấn luyện` : ''}
-          </span>
-        </div>
-      ) : summary ? (
-        <div className="model-verdict">
-          <strong>Tốc độ tốt nhất: {fastest.label} · Ổn định nhất: {mostStable.label}</strong>
-        </div>
+      {summary && repeated ? (
+        <>
+          <div className="model-evaluation-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mô hình</th>
+                  <th>Accuracy TB</th>
+                  <th>Macro-F1 TB ± SD</th>
+                  <th>Tốc độ TB (ms/ảnh)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {models.map(({ key, label }) => {
+                  const metrics = summary[key]
+                  return (
+                    <tr key={key}>
+                      <th>{label}</th>
+                      <td>
+                        {typeof metrics?.accuracy_mean === 'number'
+                          ? `${(metrics.accuracy_mean * 100).toFixed(2)}%`
+                          : '—'}
+                      </td>
+                      <td>
+                        {typeof metrics?.f1_macro_mean === 'number' && typeof metrics.f1_macro_std === 'number'
+                          ? `${(metrics.f1_macro_mean * 100).toFixed(2)}% ± ${(metrics.f1_macro_std * 100).toFixed(2)}%`
+                          : '—'}
+                      </td>
+                      <td>
+                        {typeof metrics?.median_ms_per_image_mean === 'number'
+                          ? metrics.median_ms_per_image_mean.toFixed(2)
+                          : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="model-verdict">
+            <strong>
+              {sameRecommendation
+                ? `${fastest.label} nhanh nhất và ổn định hơn`
+                : `Nhanh nhất: ${fastest.label} · Ổn định nhất: ${mostStable.label}`}
+            </strong>
+            {typeof fastestLatency === 'number' && repeated.run_count
+              ? <span>{fastestLatency.toFixed(2)} ms/ảnh · {repeated.run_count} lần huấn luyện</span>
+              : null}
+          </div>
+        </>
       ) : (
         <p className="evaluation-caveat">Chưa có báo cáo so sánh. Hãy chạy `python train_plate_color.py`.</p>
       )}
