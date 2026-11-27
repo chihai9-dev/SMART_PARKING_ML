@@ -18,7 +18,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartParking Backend (.NET)");
+        options.SwaggerEndpoint(
+            "http://localhost:5000/openapi.json",
+            "SmartParking Python AI Service");
+    });
 }
 
 app.UseHttpsRedirection();

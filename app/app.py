@@ -19,6 +19,7 @@ ROOT_DIR = BASE_DIR.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from app.openapi import OPENAPI_SPEC
 from src.models.classification import (
     load_color_model,
     load_knn_model,
@@ -29,6 +30,26 @@ from src.vision.plate_ocr import normalize_plate, recognize_plate
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+SWAGGER_CORS_ORIGINS = {
+    "http://localhost:5049",
+    "http://127.0.0.1:5049",
+    "https://localhost:7298",
+    "https://127.0.0.1:7298",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+}
+
+
+@app.after_request
+def add_swagger_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin in SWAGGER_CORS_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Max-Age"] = "600"
+        response.headers.add("Vary", "Origin")
+    return response
 
 SCAN_DIR = ROOT_DIR / "data" / "processed" / "scans"
 SCAN_DIR.mkdir(parents=True, exist_ok=True)
@@ -189,6 +210,11 @@ def _safe_upload_name(filename: str):
 @app.route("/history")
 def frontend_redirect():
     return redirect("http://localhost:5173/", code=302)
+
+
+@app.route("/openapi.json")
+def openapi_json():
+    return jsonify(OPENAPI_SPEC)
 
 
 @app.route("/api/model-info")

@@ -86,5 +86,68 @@ class TestBackendConfidence(unittest.TestCase):
         self.assertIn("KNeighborsClassifier", response_payload["algorithm_comparison"]["algorithms"])
 
 
+class TestPythonOpenApi(unittest.TestCase):
+    def test_openapi_document_describes_all_python_api_routes(self):
+        response = app.test_client().get("/openapi.json")
+
+        self.assertEqual(response.status_code, 200)
+        document = response.get_json()
+        self.assertEqual(document["openapi"], "3.0.3")
+        self.assertEqual(
+            set(document["paths"]),
+            {
+                "/api/preview-plate",
+                "/api/scan-plate",
+                "/api/classify-plate-color",
+                "/api/model-info",
+                "/api/scans",
+                "/scan-image/{filename}",
+            },
+        )
+        upload_schema = document["components"]["requestBodies"]["ImageUpload"]
+        self.assertEqual(
+            upload_schema["content"]["multipart/form-data"]["schema"]["required"],
+            ["image"],
+        )
+
+    def test_openapi_and_api_allow_swagger_ui_origin_only(self):
+        client = app.test_client()
+
+        allowed = client.get(
+            "/openapi.json",
+            headers={"Origin": "http://localhost:5049"},
+        )
+        denied = client.get(
+            "/openapi.json",
+            headers={"Origin": "https://untrusted.example"},
+        )
+
+        self.assertEqual(
+            allowed.headers.get("Access-Control-Allow-Origin"),
+            "http://localhost:5049",
+        )
+        self.assertIsNone(denied.headers.get("Access-Control-Allow-Origin"))
+
+    def test_image_upload_preflight_allows_post_from_dotnet_swagger(self):
+        response = app.test_client().options(
+            "/api/scan-plate",
+            headers={
+                "Origin": "http://localhost:5049",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers.get("Access-Control-Allow-Origin"),
+            "http://localhost:5049",
+        )
+        self.assertIn(
+            "POST",
+            response.headers.get("Access-Control-Allow-Methods", ""),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
