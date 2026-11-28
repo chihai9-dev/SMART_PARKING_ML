@@ -137,7 +137,7 @@ dotnet run --project Backend\src\Smartparking.Api
 ```
 
 Backend HTTP chạy tại `http://localhost:5049`; Swagger UI tại `http://localhost:5049/swagger`.
-Trong Swagger UI, chọn **SmartParking Python AI Service** ở danh sách tài liệu để thử các endpoint Flask. Python service phải đang chạy ở cổng 5000; mở Swagger bằng HTTP trên cổng 5049 để trình duyệt cho phép gọi Python API.
+Trong Swagger UI, chọn **SmartParking Python AI Service** ở danh sách tài liệu để thử các endpoint Flask. Python service phải đang chạy ở cổng 5000. Swagger tải tài liệu và chuyển tiếp request Python qua Backend cùng origin, nên cũng hoạt động khi mở Swagger qua HTTPS mà không bị trình duyệt chặn mixed content/CORS.
 
 **Cửa sổ 3 — Frontend**
 
@@ -165,7 +165,7 @@ Mở địa chỉ Vite được in ra trong terminal, thường là `http://loca
 | .NET | `DELETE /api/PlateScans/{id}` | Xóa lượt quét |
 
 Frontend dùng Vite proxy: `/python-api/*` chuyển tới Flask và `/backend-api/*` chuyển tới .NET. Có thể gọi trực tiếp các URL trên cổng 5000 và 5049 khi kiểm thử dịch vụ riêng.
-Flask cung cấp OpenAPI tại `http://localhost:5000/openapi.json`; .NET Swagger UI tổng hợp tài liệu này cùng tài liệu Backend. Các request Try it out của Python được gửi trực tiếp tới Flask, vì vậy Python service cần bật và chỉ cho phép CORS từ các địa chỉ local của Swagger/frontend.
+Flask cung cấp OpenAPI tại `http://localhost:5000/openapi.json`; Backend chuyển tài liệu này qua `/python-api/openapi.json` và chuyển tiếp các lệnh **Try it out** tới Flask. Khi chạy bằng Docker Compose, địa chỉ nội bộ Python được cấu hình là `http://python-api:5000`; khi chạy PowerShell trên máy Windows, Backend mặc định dùng `http://127.0.0.1:5000`.
 
 ## Kiểm thử và kiểm tra chất lượng
 

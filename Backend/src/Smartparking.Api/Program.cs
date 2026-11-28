@@ -8,6 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient("PythonApi", client =>
+{
+    var pythonApiUrl = builder.Configuration["PythonApi:BaseUrl"] ?? "http://127.0.0.1:5000";
+    client.BaseAddress = new Uri(pythonApiUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromMinutes(3);
+});
 
 builder.Services.AddSingleton<DbConnectionFactory>();
 builder.Services.AddScoped<IPlateScanRepository, PlateScanRepository>();
@@ -22,7 +28,7 @@ if (app.Environment.IsDevelopment())
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "SmartParking Backend (.NET)");
         options.SwaggerEndpoint(
-            "http://localhost:5000/openapi.json",
+            "/python-api/openapi.json",
             "SmartParking Python AI Service");
     });
 }

@@ -28,6 +28,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      PythonApi__BaseUrl: http://python-api:5000
       ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=SmartParking;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
     ports:
       - "5049:8080"
