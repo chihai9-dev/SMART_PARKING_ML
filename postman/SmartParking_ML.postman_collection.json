@@ -1,0 +1,1233 @@
+{
+	"info": {
+		"_postman_id": "a8b4c2d1-3e5f-4a7b-9c1d-2e4f6a8b0c1d",
+		"name": "SmartParking ML - Full System API",
+		"description": "Bộ sưu tập Postman đầy đủ cho hệ thống SmartParking ML, bao gồm:\n1. **SmartParking Backend (.NET 10)** (`{{backendUrl}}`, mặc định `http://localhost:5049`): Quản lý lịch sử nhận diện biển số & thống kê lưu trên SQL Server.\n2. **SmartParking Python AI Service (Flask)** (`{{pythonUrl}}`, mặc định `http://localhost:5000`): Nhận diện biển số (YOLO + OCR), phân loại màu nền (Random Forest / KNN), thông tin mô hình và phục vụ ảnh scan.\n\nMỗi request đều có sẵn:\n- **Input** (Params / Headers / Body mẫu)\n- **Saved Examples** thể hiện **Output** (200/201/400/404/503)\n- **Tests script** tự động kiểm tra kết quả và lưu biến `scanId`, `scanImageFilename` để chạy liên hoàn (Collection Runner).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "backendUrl",
+			"value": "http://localhost:5049",
+			"type": "string"
+		},
+		{
+			"key": "pythonUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "scanId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "searchPlate",
+			"value": "51F",
+			"type": "string"
+		},
+		{
+			"key": "scanImageFilename",
+			"value": "20260920_201011_760224_scene_59B112345.jpg",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Backend (.NET) - PlateScans API",
+			"description": "Các endpoint nghiệp vụ của SmartParking.Api (.NET) kết nối SQL Server.",
+			"item": [
+				{
+					"name": "Create Plate Scan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201 Created', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has created PlateScan fields', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('scanId');",
+									"    pm.expect(json).to.have.property('plate');",
+									"    pm.expect(json).to.have.property('confidence');",
+									"    pm.expect(json).to.have.property('createdAt');",
+									"    if (json.scanId) {",
+									"        pm.collectionVariables.set('scanId', String(json.scanId));",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plate\": \"51F-123.45\",\n  \"confidence\": 0.96,\n  \"imagePath\": \"/scan-image/20261128_140000_plate.jpg\",\n  \"cropImagePath\": \"/scan-image/20261128_140000_crop.jpg\",\n  \"plateColorCode\": \"White\",\n  \"plateColorLabel\": \"Biển trắng (Xe cá nhân)\",\n  \"plateColorConfidence\": 0.94,\n  \"scanTime\": \"2026-11-28T14:00:00\",\n  \"note\": \"PaddleOCR | Biển trắng (Xe cá nhân)\",\n  \"colorCode\": \"White\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{backendUrl}}/api/PlateScans",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"PlateScans"
+							]
+						},
+						"description": "Tạo mới một bản ghi lượt nhận diện biển số trong SQL Server.\n\n**Input (JSON Body - `CreatePlateScanRequest`):**\n- `plate` (string, bắt buộc): Biển số xe (tự động trim & uppercase).\n- `confidence` (number, 0..1, tùy chọn, mặc định 1.0): Độ tin cậy OCR.\n- `imagePath` (string, tùy chọn): Đường dẫn ảnh gốc.\n- `cropImagePath` (string, tùy chọn): Đường dẫn ảnh crop biển số.\n- `plateColorCode` (string, tùy chọn): Mã màu (`White` / `Yellow`).\n- `plateColorLabel` (string, tùy chọn): Nhãn màu tiếng Việt.\n- `plateColorConfidence` (number, 0..1, tùy chọn): Độ tin cậy phân loại màu.\n- `scanTime` (datetime ISO, tùy chọn): Thời điểm quét.\n- `note` (string, tùy chọn): Ghi chú.\n- `colorCode` (string, tùy chọn): Mã màu tương thích.\n\n**Output:**\n- `201 Created`: Trả về `PlateScanResponse` kèm `scanId` mới tạo.\n- `400 Bad Request`: Khi `plate` rỗng."
+					},
+					"response": [
+						{
+							"name": "201 Created - Thành công",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"plate\": \"51F-123.45\",\n  \"confidence\": 0.96,\n  \"imagePath\": \"/scan-image/20261128_140000_plate.jpg\",\n  \"cropImagePath\": \"/scan-image/20261128_140000_crop.jpg\",\n  \"plateColorCode\": \"White\",\n  \"plateColorLabel\": \"Biển trắng (Xe cá nhân)\",\n  \"plateColorConfidence\": 0.94,\n  \"scanTime\": \"2026-11-28T14:00:00\",\n  \"note\": \"PaddleOCR | Biển trắng (Xe cá nhân)\",\n  \"colorCode\": \"White\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans"
+									]
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"scanId\": 1,\n  \"plate\": \"51F-123.45\",\n  \"confidence\": 0.96,\n  \"imagePath\": \"/scan-image/20261128_140000_plate.jpg\",\n  \"cropImagePath\": \"/scan-image/20261128_140000_crop.jpg\",\n  \"plateColorCode\": \"White\",\n  \"plateColorLabel\": \"Biển trắng (Xe cá nhân)\",\n  \"plateColorConfidence\": 0.94,\n  \"scanTime\": \"2026-11-28T14:00:00\",\n  \"note\": \"PaddleOCR | Biển trắng (Xe cá nhân)\",\n  \"colorCode\": \"White\",\n  \"createdAt\": \"2026-11-28T14:00:01.123\"\n}"
+						},
+						{
+							"name": "400 Bad Request - Thiếu biển số",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"plate\": \"\",\n  \"confidence\": 0.9\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"message\": \"Biển số xe không được để trống.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get All Plate Scans",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is an array of PlateScanResponse', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array');",
+									"    if (json.length > 0) {",
+									"        pm.expect(json[0]).to.have.property('scanId');",
+									"        pm.expect(json[0]).to.have.property('plate');",
+									"        pm.collectionVariables.set('scanId', String(json[0].scanId));",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{backendUrl}}/api/PlateScans?search={{searchPlate}}",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"PlateScans"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "{{searchPlate}}",
+									"description": "Từ khóa lọc theo biển số (tùy chọn, bỏ tick để lấy toàn bộ)"
+								}
+							]
+						},
+						"description": "Lấy danh sách các lượt nhận diện biển số từ SQL Server.\n\n**Input:**\n- `search` (query string, tùy chọn): Lọc theo biển số (bỏ check tham số này nếu muốn lấy tất cả).\n\n**Output:**\n- `200 OK`: Mảng `PlateScanResponse[]`."
+					},
+					"response": [
+						{
+							"name": "200 OK - Danh sách lượt scan",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "[\n  {\n    \"scanId\": 1,\n    \"plate\": \"51F-123.45\",\n    \"confidence\": 0.96,\n    \"imagePath\": \"/scan-image/20261128_140000_plate.jpg\",\n    \"cropImagePath\": \"/scan-image/20261128_140000_crop.jpg\",\n    \"plateColorCode\": \"White\",\n    \"plateColorLabel\": \"Biển trắng (Xe cá nhân)\",\n    \"plateColorConfidence\": 0.94,\n    \"scanTime\": \"2026-11-28T14:00:00\",\n    \"note\": \"PaddleOCR | Biển trắng (Xe cá nhân)\",\n    \"colorCode\": \"White\",\n    \"createdAt\": \"2026-11-28T14:00:01.123\"\n  }\n]"
+						}
+					]
+				},
+				{
+					"name": "Get Plate Scan Stats",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has stats fields', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('totalScans');",
+									"    pm.expect(json).to.have.property('todayScans');",
+									"    pm.expect(json).to.have.property('averageConfidence');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{backendUrl}}/api/PlateScans/stats",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"PlateScans",
+								"stats"
+							]
+						},
+						"description": "Lấy thống kê tổng số lượt nhận diện, lượt trong ngày và độ tin cậy trung bình.\n\n**Input:** Không có.\n\n**Output:**\n- `200 OK`: `{ totalScans, todayScans, averageConfidence }`."
+					},
+					"response": [
+						{
+							"name": "200 OK - Thống kê",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans/stats",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans",
+										"stats"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"totalScans\": 15,\n  \"todayScans\": 4,\n  \"averageConfidence\": 0.9342\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Plate Scan By ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test('Response has scanId and plate', function () {",
+									"        const json = pm.response.json();",
+									"        pm.expect(json).to.have.property('scanId');",
+									"        pm.expect(json).to.have.property('plate');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{backendUrl}}/api/PlateScans/{{scanId}}",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"PlateScans",
+								"{{scanId}}"
+							]
+						},
+						"description": "Lấy chi tiết một lượt nhận diện theo `id`.\n\n**Input:**\n- `id` (path param, `long`): ID bản ghi (mặc định lấy từ biến `{{scanId}}`).\n\n**Output:**\n- `200 OK`: `PlateScanResponse`.\n- `404 Not Found`: `{ \"message\": \"Không tìm thấy lượt nhận diện.\" }`."
+					},
+					"response": [
+						{
+							"name": "200 OK - Tìm thấy",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans/1",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans",
+										"1"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"scanId\": 1,\n  \"plate\": \"51F-123.45\",\n  \"confidence\": 0.96,\n  \"imagePath\": \"/scan-image/20261128_140000_plate.jpg\",\n  \"cropImagePath\": \"/scan-image/20261128_140000_crop.jpg\",\n  \"plateColorCode\": \"White\",\n  \"plateColorLabel\": \"Biển trắng (Xe cá nhân)\",\n  \"plateColorConfidence\": 0.94,\n  \"scanTime\": \"2026-11-28T14:00:00\",\n  \"note\": \"PaddleOCR | Biển trắng (Xe cá nhân)\",\n  \"colorCode\": \"White\",\n  \"createdAt\": \"2026-11-28T14:00:01.123\"\n}"
+						},
+						{
+							"name": "404 Not Found",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans/999999",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans",
+										"999999"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"message\": \"Không tìm thấy lượt nhận diện.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Delete Plate Scan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"pm.test('Response has message', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{backendUrl}}/api/PlateScans/{{scanId}}",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"api",
+								"PlateScans",
+								"{{scanId}}"
+							]
+						},
+						"description": "Xóa một bản ghi lượt nhận diện theo `id`.\n\n**Input:**\n- `id` (path param, `long`): ID bản ghi cần xóa (`{{scanId}}`).\n\n**Output:**\n- `200 OK`: `{ \"message\": \"Xóa bản ghi thành công.\" }`.\n- `404 Not Found`: `{ \"message\": \"Không tìm thấy bản ghi để xóa.\" }`."
+					},
+					"response": [
+						{
+							"name": "200 OK - Xóa thành công",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans/1",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans",
+										"1"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"message\": \"Xóa bản ghi thành công.\"\n}"
+						},
+						{
+							"name": "404 Not Found",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{backendUrl}}/api/PlateScans/999999",
+									"host": [
+										"{{backendUrl}}"
+									],
+									"path": [
+										"api",
+										"PlateScans",
+										"999999"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"body": "{\n  \"message\": \"Không tìm thấy bản ghi để xóa.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Backend Swagger JSON",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Valid OpenAPI/Swagger JSON', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('paths');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{backendUrl}}/swagger/v1/swagger.json",
+							"host": [
+								"{{backendUrl}}"
+							],
+							"path": [
+								"swagger",
+								"v1",
+								"swagger.json"
+							]
+						},
+						"description": "Lấy đặc tả OpenAPI/Swagger của SmartParking Backend (.NET) khi chạy ở môi trường Development."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Python AI Service - ALPR & Color",
+			"description": "Các endpoint AI nhận diện biển số (YOLO/OCR), phân loại màu nền biển số (Random Forest / KNN), thông tin mô hình và ảnh scan.",
+			"item": [
+				{
+					"name": "Preview Plate (OCR + Color, No Save)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains OCR and color fields', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"    pm.expect(json).to.have.property('plate');",
+									"    pm.expect(json).to.have.property('valid');",
+									"    pm.expect(json).to.have.property('confidence');",
+									"    pm.expect(json).to.have.property('plate_color');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": "C:/Users/Admin/Downloads/OneDrive - Saigon University/Desktop/SMART_PARKING_ML/data/external/plates/scene_59B112345.jpg",
+									"description": "Chọn file ảnh xe/biển số (tối đa 8 MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{pythonUrl}}/api/preview-plate",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"api",
+								"preview-plate"
+							]
+						},
+						"description": "Nhận diện thử biển số và phân loại màu nền từ ảnh, **không lưu** file ảnh hay ghi vào database.\n\n**Input (`multipart/form-data`):**\n- `image` (file, bắt buộc, tối đa 8 MB): File ảnh đầu vào.\n\n**Output:**\n- `200 OK`: `{ status, plate, valid, confidence, engine, message, plate_color, bbox, annotated_jpeg_b64, crop_jpeg_b64 }`.\n- `400 Bad Request`: Ảnh thiếu, rỗng hoặc không giải mã được."
+					},
+					"response": [
+						{
+							"name": "200 OK - Nhận diện thành công",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file",
+											"src": "car_plate.jpg"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/preview-plate",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"preview-plate"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"success\",\n  \"plate\": \"51F-123.45\",\n  \"valid\": true,\n  \"confidence\": 0.95,\n  \"engine\": \"YOLO + PaddleOCR\",\n  \"message\": \"Nhận diện thành công\",\n  \"plate_color\": {\n    \"color_code\": \"White\",\n    \"color_label\": \"Biển trắng (Xe cá nhân)\",\n    \"confidence\": 0.94,\n    \"probabilities\": {\n      \"White\": 0.94,\n      \"Yellow\": 0.06\n    },\n    \"algorithm\": \"RandomForest\",\n    \"comparison\": {\n      \"color_code\": \"White\",\n      \"color_label\": \"Biển trắng (Xe cá nhân)\",\n      \"confidence\": 0.9,\n      \"algorithm\": \"KNN\"\n    }\n  },\n  \"bbox\": [120, 210, 340, 290],\n  \"annotated_jpeg_b64\": \"/9j/4AAQSkZJRgABAQAAAQABAAD...\",\n  \"crop_jpeg_b64\": \"/9j/4AAQSkZJRgABAQAAAQABAAD...\"\n}"
+						},
+						{
+							"name": "400 Bad Request - Thiếu ảnh",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/preview-plate",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"preview-plate"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"error\",\n  \"message\": \"Không có ảnh camera.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Scan Plate (OCR + Color + Save to DB)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains scan result and database_saved flag', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"    pm.expect(json).to.have.property('database_saved');",
+									"    pm.expect(json).to.have.property('image_path');",
+									"    if (json.image_path) {",
+									"        const parts = json.image_path.split(/[\\\\/]/);",
+									"        const filename = parts[parts.length - 1];",
+									"        if (filename) {",
+									"            pm.collectionVariables.set('scanImageFilename', filename);",
+									"        }",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": "C:/Users/Admin/Downloads/OneDrive - Saigon University/Desktop/SMART_PARKING_ML/data/external/plates/scene_59B112345.jpg",
+									"description": "Chọn file ảnh có biển số xe (tối đa 8 MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{pythonUrl}}/api/scan-plate",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"api",
+								"scan-plate"
+							]
+						},
+						"description": "Phân tích ảnh biển số, phân loại màu nền, lưu ảnh gốc + ảnh crop trên Python service và gửi bản ghi sang .NET Backend (`POST /api/PlateScans`) để lưu SQL Server.\n\n**Input (`multipart/form-data`):**\n- `image` (file, bắt buộc, tối đa 8 MB): Ảnh xe/biển số.\n\n**Output:**\n- `200 OK`: `{ status, plate, valid, confidence, engine, message, plate_color, algorithm_comparison, raw_candidates, bbox, crop_jpeg_b64, annotated_jpeg_b64, saved, image_path, crop_path, database_saved, database_message }`.\n- `400 Bad Request`: Ảnh thiếu, rỗng hoặc không giải mã được.\n- `503 Service Unavailable`: Lỗi kết nối tới Backend .NET."
+					},
+					"response": [
+						{
+							"name": "200 OK - Quét và lưu thành công",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file",
+											"src": "car_plate.jpg"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/scan-plate",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"scan-plate"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"success\",\n  \"plate\": \"51F-123.45\",\n  \"valid\": true,\n  \"confidence\": 0.96,\n  \"engine\": \"YOLO + PaddleOCR\",\n  \"message\": \"Nhận diện thành công\",\n  \"plate_color\": {\n    \"color_code\": \"White\",\n    \"color_label\": \"Biển trắng (Xe cá nhân)\",\n    \"confidence\": 0.94,\n    \"algorithm\": \"RandomForest\"\n  },\n  \"algorithm_comparison\": {\n    \"best_model\": \"RandomForest\"\n  },\n  \"raw_candidates\": [\"51F12345\"],\n  \"bbox\": [120, 210, 340, 290],\n  \"crop_jpeg_b64\": \"/9j/4AAQSkZJRgABAQAAAQABAAD...\",\n  \"annotated_jpeg_b64\": \"/9j/4AAQSkZJRgABAQAAAQABAAD...\",\n  \"saved\": {\n    \"id\": \"20261128_140000_123456\",\n    \"plate\": \"51F-123.45\",\n    \"valid\": true,\n    \"confidence\": 0.96\n  },\n  \"image_path\": \"data/processed/scans/20261128_140000_123456_car_plate.jpg\",\n  \"crop_path\": \"data/processed/scans/20261128_140000_123456_crop.jpg\",\n  \"database_saved\": true,\n  \"database_message\": null\n}"
+						},
+						{
+							"name": "400 Bad Request - Thiếu ảnh",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/scan-plate",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"scan-plate"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"error\",\n  \"message\": \"Hãy chọn một ảnh có biển số xe.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Classify Plate Color Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains color classification', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"    pm.expect(json).to.have.property('color_code');",
+									"    pm.expect(json).to.have.property('color_label');",
+									"    pm.expect(json).to.have.property('confidence');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": "C:/Users/Admin/Downloads/OneDrive - Saigon University/Desktop/SMART_PARKING_ML/data/external/plates/51A12345.png",
+									"description": "Chọn ảnh đã crop vùng biển số (tối đa 8 MB)"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{pythonUrl}}/api/classify-plate-color",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"api",
+								"classify-plate-color"
+							]
+						},
+						"description": "Phân loại màu nền biển số (Trắng / Vàng) từ ảnh đã crop vùng biển số bằng Random Forest và so sánh với KNN.\n\n**Input (`multipart/form-data`):**\n- `image` (file, bắt buộc): Ảnh crop vùng biển số.\n\n**Output:**\n- `200 OK`: `{ status, color_code, color_label, confidence, probabilities, algorithm, comparison }`.\n- `400 Bad Request`: Ảnh thiếu, rỗng hoặc không giải mã được."
+					},
+					"response": [
+						{
+							"name": "200 OK - Phân loại màu thành công",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "image",
+											"type": "file",
+											"src": "plate_crop.jpg"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/classify-plate-color",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"classify-plate-color"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"success\",\n  \"color_code\": \"Yellow\",\n  \"color_label\": \"Biển vàng (Xe kinh doanh vận tải)\",\n  \"confidence\": 0.97,\n  \"probabilities\": {\n    \"White\": 0.03,\n    \"Yellow\": 0.97\n  },\n  \"algorithm\": \"RandomForest\",\n  \"comparison\": {\n    \"color_code\": \"Yellow\",\n    \"color_label\": \"Biển vàng (Xe kinh doanh vận tải)\",\n    \"confidence\": 0.92,\n    \"algorithm\": \"KNN\"\n  }\n}"
+						},
+						{
+							"name": "400 Bad Request - Thiếu ảnh",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{pythonUrl}}/api/classify-plate-color",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"classify-plate-color"
+									]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"error\",\n  \"message\": \"Hãy gửi kèm file ảnh vùng biển số.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Color Model Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test('Response has model metadata', function () {",
+									"        const json = pm.response.json();",
+									"        pm.expect(json.status).to.eql('success');",
+									"        pm.expect(json).to.have.property('model');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{pythonUrl}}/api/model-info",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"api",
+								"model-info"
+							]
+						},
+						"description": "Lấy metadata và báo cáo huấn luyện của mô hình phân loại màu biển số (`models/classification/model_metadata.json`).\n\n**Input:** Không có.\n\n**Output:**\n- `200 OK`: `{ status: \"success\", model: { ... } }`.\n- `404 Not Found`: Chưa có file metadata (cần chạy `python train_plate_color.py`)."
+					},
+					"response": [
+						{
+							"name": "200 OK - Có metadata",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{pythonUrl}}/api/model-info",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"model-info"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"success\",\n  \"model\": {\n    \"model_name\": \"RandomForestClassifier\",\n    \"classes\": [\"White\", \"Yellow\"],\n    \"accuracy\": 0.98\n  }\n}"
+						},
+						{
+							"name": "404 Not Found - Chưa train model",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{pythonUrl}}/api/model-info",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"model-info"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"error\",\n  \"message\": \"Chưa có metadata mô hình. Hãy chạy: python train_plate_color.py\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get In-Memory Scans History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains scans array', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.status).to.eql('success');",
+									"    pm.expect(json.scans).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{pythonUrl}}/api/scans",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"api",
+								"scans"
+							]
+						},
+						"description": "Lấy danh sách tối đa 100 lượt scan gần nhất lưu tạm trong bộ nhớ của Python AI Service.\n\n**Input:** Không có.\n\n**Output:**\n- `200 OK`: `{ status: \"success\", scans: [...] }`."
+					},
+					"response": [
+						{
+							"name": "200 OK - Lịch sử tạm",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{pythonUrl}}/api/scans",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"api",
+										"scans"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"success\",\n  \"scans\": [\n    {\n      \"id\": \"20261128_140000_123456\",\n      \"plate\": \"51F-123.45\",\n      \"valid\": true,\n      \"confidence\": 0.96,\n      \"engine\": \"YOLO + PaddleOCR\",\n      \"source_filename\": \"car_plate.jpg\",\n      \"image_path\": \"data/processed/scans/20261128_140000_123456_car_plate.jpg\",\n      \"crop_path\": \"data/processed/scans/20261128_140000_123456_crop.jpg\"\n    }\n  ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Scan Image File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{pythonUrl}}/scan-image/{{scanImageFilename}}",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"scan-image",
+								"{{scanImageFilename}}"
+							]
+						},
+						"description": "Xem hoặc tải file ảnh scan đã được lưu trong thư mục `data/processed/scans/`.\n\n**Input:**\n- `filename` (path param): Tên file ảnh (tự động cập nhật vào `{{scanImageFilename}}` sau khi chạy `Scan Plate`).\n\n**Output:**\n- `200 OK`: Nội dung ảnh nhị phân (`image/jpeg`, `image/png`, `image/webp`).\n- `404 Not Found`: `{ \"status\": \"error\", \"message\": \"Không tìm thấy ảnh nhận diện.\" }`."
+					},
+					"response": [
+						{
+							"name": "404 Not Found - Không có ảnh",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{pythonUrl}}/scan-image/not_exists.jpg",
+									"host": [
+										"{{pythonUrl}}"
+									],
+									"path": [
+										"scan-image",
+										"not_exists.jpg"
+									]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n  \"status\": \"error\",\n  \"message\": \"Không tìm thấy ảnh nhận diện.\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Python OpenAPI JSON",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('Valid OpenAPI 3.0.3 spec', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.openapi).to.eql('3.0.3');",
+									"    pm.expect(json).to.have.property('paths');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{pythonUrl}}/openapi.json",
+							"host": [
+								"{{pythonUrl}}"
+							],
+							"path": [
+								"openapi.json"
+							]
+						},
+						"description": "Lấy đặc tả OpenAPI 3.0.3 của SmartParking Python AI Service."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

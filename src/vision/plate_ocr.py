@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import numpy as np
 
+from src.vision.char_pipeline import get_custom_char_alpr
 from src.vision.plate_detect import annotate_plate, find_plate_regions
 from src.vision.preprocess import (
     ImageInput,
@@ -307,33 +308,90 @@ class PlateRecognizer:
 
         return best_items, "tesseract" if best_items else "none"
 
-    def recognize(self, source: ImageInput) -> dict[str, Any]:
+    def _recognize_custom_region(
+        self,
+        region: dict[str, Any],
+        include_char_crops_b64: bool = False,
+    ) -> dict[str, Any]:
+        custom = get_custom_char_alpr()
+        res = custom.recognize_plate_crop(
+            region["crop"],
+            include_char_crops_b64=include_char_crops_b64,
+        )
+        plate = normalize_plate(res.get("plate"))
+        conf = float(res.get("confidence", 0.0))
+        return {
+            "plate": plate,
+            "raw_candidates": [(res.get("plate") or "", conf)],
+            "confidence": conf,
+            "engine": res.get("engine", "custom_yolo_hog_svm"),
+            "valid": is_valid_vn_plate(plate),
+            "bbox": region["bbox"],
+            "region_score": region["score"],
+            "line_count": res.get("line_count", 0),
+            "characters": res.get("characters", []),
+        }
+
+    def recognize(
+        self,
+        source: ImageInput,
+        engine_mode: str = "auto",
+        include_char_crops_b64: bool = False,
+    ) -> dict[str, Any]:
         image = resize_max(load_image(source), 1600)
         regions = find_plate_regions(image)
-        engine = "none"
+        custom = get_custom_char_alpr()
+        use_custom = (
+            engine_mode == "custom"
+            or (engine_mode == "auto" and custom.is_available)
+        )
+
+        engine = "custom_yolo_hog_svm" if use_custom else "none"
         best: dict[str, Any] | None = None
 
-        for region in regions:
-            items, engine = self._ocr_image(region["crop"])
-            plate, conf = _assemble_from_items(items)
-            candidate = {
-                "plate": plate,
-                "raw_candidates": items,
-                "confidence": conf,
-                "engine": engine,
-                "valid": is_valid_vn_plate(plate),
-                "bbox": region["bbox"],
-                "region_score": region["score"],
+        if use_custom and not custom.is_available:
+            best = {
+                "plate": "",
+                "raw_candidates": [],
+                "confidence": 0.0,
+                "engine": "custom_unavailable",
+                "valid": False,
+                "bbox": regions[0]["bbox"] if regions else [0, 0, image.shape[1], image.shape[0]],
+                "characters": [],
+                "message": (
+                    "Chưa có model tự train. Hãy đặt char_detect.onnx vào models/vision/ "
+                    "và char_svm_model.joblib vào models/classification/."
+                ),
             }
-            if best is None:
-                best = candidate
-            else:
-                best_key = (int(best["valid"]), best["confidence"], best.get("region_score", 0))
-                new_key = (int(candidate["valid"]), candidate["confidence"], candidate["region_score"])
-                if new_key > best_key:
+        else:
+            for region in regions:
+                if use_custom:
+                    candidate = self._recognize_custom_region(
+                        region,
+                        include_char_crops_b64=include_char_crops_b64,
+                    )
+                    engine = candidate["engine"]
+                else:
+                    items, engine = self._ocr_image(region["crop"])
+                    plate, conf = _assemble_from_items(items)
+                    candidate = {
+                        "plate": plate,
+                        "raw_candidates": items,
+                        "confidence": conf,
+                        "engine": engine,
+                        "valid": is_valid_vn_plate(plate),
+                        "bbox": region["bbox"],
+                        "region_score": region["score"],
+                    }
+                if best is None:
                     best = candidate
-            if candidate["valid"] and conf >= 0.35:
-                break
+                else:
+                    best_key = (int(best["valid"]), best["confidence"], best.get("region_score", 0))
+                    new_key = (int(candidate["valid"]), candidate["confidence"], candidate["region_score"])
+                    if new_key > best_key:
+                        best = candidate
+                if candidate["valid"] and candidate["confidence"] >= 0.35:
+                    break
 
         if best is None:
             best = {
